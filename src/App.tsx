@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Header } from './components/Header';
 import { HeroSection } from './components/HeroSection';
 import { ProductCard, Product } from './components/ProductCard';
@@ -16,7 +16,7 @@ const mockProducts: Product[] = [
     name: 'Celana Jeans Vintage Levi\'s 501',
     price: 675000,
     originalPrice: 1335000,
-    image: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=400&fit=crop',
+    image: '/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_1-30.jpg',
     category: 'pants',
     condition: 'Good',
     description: 'Celana jeans vintage Levi\'s 501 klasik dalam kondisi sangat baik',
@@ -30,7 +30,7 @@ const mockProducts: Product[] = [
     name: 'Kaos Band Vintage',
     price: 375000,
     originalPrice: 600000,
-    image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop',
+    image: '/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_2-00.jpg',
     category: 'shirts',
     condition: 'Excellent',
     description: 'Kaos band vintage asli, lembut dan nyaman',
@@ -44,7 +44,7 @@ const mockProducts: Product[] = [
     name: 'Blazer Wol',
     price: 825000,
     originalPrice: 2250000,
-    image: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=400&h=400&fit=crop',
+    image: '/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_2-30.jpg',
     category: 'jackets',
     condition: 'Good',
     description: 'Blazer wol profesional, cocok untuk keperluan kantor',
@@ -58,7 +58,7 @@ const mockProducts: Product[] = [
     name: 'Dress Musim Panas Motif Bunga',
     price: 525000,
     originalPrice: 1200000,
-    image: 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=400&h=400&fit=crop',
+    image: '/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_3-00.jpg',
     category: 'dresses',
     condition: 'Excellent',
     description: 'Dress cantik dengan motif bunga untuk musim panas, ringan dan mengalir',
@@ -72,7 +72,7 @@ const mockProducts: Product[] = [
     name: 'Celana Chino Khaki',
     price: 420000,
     originalPrice: 975000,
-    image: 'https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=400&h=400&fit=crop',
+    image: '/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_3-20.jpg',
     category: 'pants',
     condition: 'Good',
     description: 'Celana chino khaki yang nyaman, cocok untuk pakaian kasual',
@@ -86,7 +86,7 @@ const mockProducts: Product[] = [
     name: 'Sweater Oversized',
     price: 480000,
     originalPrice: 1125000,
-    image: 'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=400&h=400&fit=crop',
+    image: '/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_4-00.jpg',
     category: 'shirts',
     condition: 'Excellent',
     description: 'Sweater oversized yang hangat, sempurna untuk layering',
@@ -100,7 +100,7 @@ const mockProducts: Product[] = [
     name: 'Jaket Denim',
     price: 570000,
     originalPrice: 1425000,
-    image: 'https://images.unsplash.com/photo-1551537482-f2075a1d41f2?w=400&h=400&fit=crop',
+    image: '/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_1-30.jpg',
     category: 'jackets',
     condition: 'Good',
     description: 'Jaket denim klasik, serbaguna dan timeless',
@@ -114,7 +114,7 @@ const mockProducts: Product[] = [
     name: 'Celana Formal Hitam',
     price: 630000,
     originalPrice: 1275000,
-    image: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=400&h=400&fit=crop',
+    image: '/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_2-00.jpg',
     category: 'pants',
     condition: 'Excellent',
     description: 'Celana formal hitam profesional, potongan pas',
@@ -127,7 +127,7 @@ const mockProducts: Product[] = [
     id: '9',
     name: 'Kaos Grafis Vintage',
     price: 330000,
-    image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop',
+    image: '/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_2-30.jpg',
     category: 'shirts',
     condition: 'Fair',
     description: 'Kaos grafis vintage keren dengan desain retro',
@@ -141,7 +141,7 @@ const mockProducts: Product[] = [
     name: 'Dress Maxi',
     price: 720000,
     originalPrice: 1800000,
-    image: 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=400&h=400&fit=crop',
+    image: '/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_3-00.jpg',
     category: 'dresses',
     condition: 'Good',
     description: 'Dress maxi elegan, sempurna untuk acara khusus',
@@ -155,7 +155,7 @@ const mockProducts: Product[] = [
     name: 'Celana Korduroy',
     price: 525000,
     originalPrice: 1050000,
-    image: 'https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=400&h=400&fit=crop',
+    image: '/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_3-20.jpg',
     category: 'pants',
     condition: 'Good',
     description: 'Celana korduroy retro, nyaman dan stylish',
@@ -169,7 +169,7 @@ const mockProducts: Product[] = [
     name: 'Jaket Kulit',
     price: 1275000,
     originalPrice: 3000000,
-    image: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400&h=400&fit=crop',
+    image: '/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_4-00.jpg',
     category: 'jackets',
     condition: 'Excellent',
     description: 'Jaket kulit asli, gaya timeless',
@@ -200,9 +200,9 @@ export default function App() {
 
   // Get unique values for filters
   const availableCategories = Array.from(new Set(mockProducts.map(p => p.category)));
-  const availableBrands = Array.from(new Set(mockProducts.map(p => p.brand).filter(Boolean)));
-  const availableSizes = Array.from(new Set(mockProducts.map(p => p.size).filter(Boolean)));
-  const availableColors = Array.from(new Set(mockProducts.map(p => p.color).filter(Boolean)));
+  const availableBrands = Array.from(new Set(mockProducts.map(p => p.brand).filter((b): b is string => Boolean(b))));
+  const availableSizes = Array.from(new Set(mockProducts.map(p => p.size).filter((s): s is string => Boolean(s))));
+  const availableColors = Array.from(new Set(mockProducts.map(p => p.color).filter((c): c is string => Boolean(c))));
   const maxPrice = Math.max(...mockProducts.map(p => p.price));
 
   // Calculate active filters count
@@ -322,7 +322,7 @@ export default function App() {
   const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       <Header
         cartItemCount={cartItemCount}
         onCartClick={() => setIsCartOpen(true)}
@@ -332,10 +332,10 @@ export default function App() {
       
       <HeroSection />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
           {/* Desktop Filters Sidebar */}
-          <aside className="hidden lg:block w-80 shrink-0">
+          <aside className="hidden lg:block w-64 shrink-0">
             <ProductFilters
               filters={filters}
               onFiltersChange={setFilters}
@@ -350,7 +350,7 @@ export default function App() {
           {/* Main Content */}
           <div className="flex-1">
             {/* Mobile Toolbar */}
-            <div className="flex items-center gap-3 mb-4 lg:hidden">
+            <div className="flex items-center gap-3 mb-6 lg:hidden">
               <MobileFilters
                 filters={filters}
                 onFiltersChange={setFilters}
@@ -362,48 +362,48 @@ export default function App() {
                 activeFiltersCount={activeFiltersCount}
               />
               <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
-                <SelectTrigger className="flex-1">
+                <SelectTrigger className="flex-1 bg-gray-50 border-0">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="newest">Terbaru</SelectItem>
-                  <SelectItem value="popular">Populer</SelectItem>
-                  <SelectItem value="price-low">Harga ↑</SelectItem>
-                  <SelectItem value="price-high">Harga ↓</SelectItem>
+                  <SelectItem value="newest">신상품순</SelectItem>
+                  <SelectItem value="popular">인기순</SelectItem>
+                  <SelectItem value="price-low">낮은가격순</SelectItem>
+                  <SelectItem value="price-high">높은가격순</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {/* Desktop Toolbar */}
-            <div className="hidden lg:flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div className="hidden lg:flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">
-                  {searchQuery ? `Hasil Pencarian untuk "${searchQuery}"` : 'Pakaian &amp; Celana Thrift'}
+                <h2 className="text-lg font-semibold text-gray-900 mb-1">
+                  {searchQuery ? `"${searchQuery}" 검색 결과` : '전체 상품'}
                 </h2>
-                <p className="text-gray-600">
-                  {filteredAndSortedProducts.length} {filteredAndSortedProducts.length === 1 ? 'barang' : 'barang'} ditemukan
+                <p className="text-sm text-gray-500">
+                  총 {filteredAndSortedProducts.length}개
                 </p>
               </div>
               
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
-                  <SelectTrigger className="w-48">
+                  <SelectTrigger className="w-40 h-9 bg-white border-gray-200 text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="newest">Terbaru</SelectItem>
-                    <SelectItem value="popular">Paling Populer</SelectItem>
-                    <SelectItem value="price-low">Harga: Rendah ke Tinggi</SelectItem>
-                    <SelectItem value="price-high">Harga: Tinggi ke Rendah</SelectItem>
+                    <SelectItem value="newest">신상품순</SelectItem>
+                    <SelectItem value="popular">인기순</SelectItem>
+                    <SelectItem value="price-low">낮은가격순</SelectItem>
+                    <SelectItem value="price-high">높은가격순</SelectItem>
                   </SelectContent>
                 </Select>
                 
-                <div className="flex border rounded-md">
+                <div className="flex border border-gray-200 rounded-md overflow-hidden">
                   <Button
                     variant={viewMode === 'grid' ? 'default' : 'ghost'}
                     size="sm"
                     onClick={() => setViewMode('grid')}
-                    className="rounded-r-none"
+                    className="rounded-none border-0 h-9 px-3"
                   >
                     <Grid className="h-4 w-4" />
                   </Button>
@@ -411,7 +411,7 @@ export default function App() {
                     variant={viewMode === 'list' ? 'default' : 'ghost'}
                     size="sm"
                     onClick={() => setViewMode('list')}
-                    className="rounded-l-none"
+                    className="rounded-none border-0 h-9 px-3"
                   >
                     <List className="h-4 w-4" />
                   </Button>
@@ -420,16 +420,16 @@ export default function App() {
             </div>
 
             {/* Results count for mobile */}
-            <div className="mb-4 lg:hidden">
-              <p className="text-gray-600 text-sm">
-                {filteredAndSortedProducts.length} {filteredAndSortedProducts.length === 1 ? 'barang' : 'barang'} ditemukan
+            <div className="mb-6 lg:hidden">
+              <p className="text-sm text-gray-500">
+                총 {filteredAndSortedProducts.length}개
               </p>
             </div>
 
             {/* Product Grid */}
             {filteredAndSortedProducts.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-gray-500 text-lg mb-4">Tidak ada pakaian yang ditemukan sesuai kriteria Anda.</p>
+              <div className="text-center py-20">
+                <p className="text-gray-500 text-base mb-4">검색 결과가 없습니다.</p>
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -443,26 +443,28 @@ export default function App() {
                       colors: []
                     });
                   }}
+                  className="bg-white border-gray-200"
                 >
-                  Hapus Semua Filter
+                  필터 초기화
                 </Button>
               </div>
             ) : (
               <div className={
                 viewMode === 'grid' 
-                  ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6'
+                  ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8'
                   : 'space-y-3 sm:space-y-4'
               }>
-                {filteredAndSortedProducts.map(product => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    onAddToCart={addToCart}
-                    onToggleFavorite={toggleFavorite}
-                    isFavorite={favorites.has(product.id)}
-                    isMobile={viewMode === 'list'}
-                  />
-                ))}
+                {filteredAndSortedProducts.map(product => {
+                  const cardProps = {
+                    product,
+                    onAddToCart: addToCart,
+                    onToggleFavorite: toggleFavorite,
+                    isFavorite: favorites.has(product.id),
+                    isMobile: viewMode === 'list'
+                  } as React.ComponentProps<typeof ProductCard>;
+                  
+                  return <ProductCard key={product.id} {...cardProps} />;
+                })}
               </div>
             )}
           </div>
