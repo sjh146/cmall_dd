@@ -9,11 +9,28 @@ interface HeaderProps {
   onCartClick: () => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  selectedCategory?: string;
+  onCategoryChange?: (category: string) => void;
 }
 
-export function Header({ cartItemCount, onCartClick, searchQuery, onSearchChange }: HeaderProps) {
+const categoryMap: Record<string, string> = {
+  'all': '',
+  'shirts': 'shirts',
+  'pants': 'pants',
+  'jackets': 'jackets',
+  'dresses': 'dresses'
+};
+
+export function Header({ cartItemCount, onCartClick, searchQuery, onSearchChange, selectedCategory = 'all', onCategoryChange }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  const handleCategoryClick = (categoryKey: string) => {
+    if (onCategoryChange) {
+      onCategoryChange(categoryMap[categoryKey]);
+    }
+    setIsMenuOpen(false);
+  };
 
   return (
     <>
@@ -37,11 +54,56 @@ export function Header({ cartItemCount, onCartClick, searchQuery, onSearchChange
 
             {/* Desktop Navigation - Hidden on mobile */}
             <nav className="hidden md:flex space-x-8 flex-1 justify-center">
-              <a href="#" className="text-sm font-medium text-gray-900 hover:text-gray-600 transition-colors">전체</a>
-              <a href="#" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">상의</a>
-              <a href="#" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">하의</a>
-              <a href="#" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">아우터</a>
-              <a href="#" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">원피스</a>
+              <button
+                onClick={() => handleCategoryClick('all')}
+                className={`text-sm font-medium transition-colors ${
+                  selectedCategory === 'all' || selectedCategory === ''
+                    ? 'text-gray-900'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Semua Pakaian
+              </button>
+              <button
+                onClick={() => handleCategoryClick('shirts')}
+                className={`text-sm font-medium transition-colors ${
+                  selectedCategory === 'shirts'
+                    ? 'text-gray-900'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Baju & Atasan
+              </button>
+              <button
+                onClick={() => handleCategoryClick('pants')}
+                className={`text-sm font-medium transition-colors ${
+                  selectedCategory === 'pants'
+                    ? 'text-gray-900'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Celana
+              </button>
+              <button
+                onClick={() => handleCategoryClick('jackets')}
+                className={`text-sm font-medium transition-colors ${
+                  selectedCategory === 'jackets'
+                    ? 'text-gray-900'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Jaket
+              </button>
+              <button
+                onClick={() => handleCategoryClick('dresses')}
+                className={`text-sm font-medium transition-colors ${
+                  selectedCategory === 'dresses'
+                    ? 'text-gray-900'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Dress
+              </button>
             </nav>
 
             {/* Desktop Search - Hidden on mobile */}
@@ -117,41 +179,56 @@ export function Header({ cartItemCount, onCartClick, searchQuery, onSearchChange
           </SheetHeader>
           
           <nav className="mt-8 space-y-4">
-            <a 
-              href="#" 
-              className="block py-3 px-2 text-base text-gray-700 hover:text-primary hover:bg-gray-50 rounded-md transition-colors"
-              onClick={() => setIsMenuOpen(false)}
+            <button
+              onClick={() => handleCategoryClick('all')}
+              className={`w-full text-left block py-3 px-2 text-base rounded-md transition-colors ${
+                selectedCategory === 'all' || selectedCategory === ''
+                  ? 'text-gray-900 bg-gray-50'
+                  : 'text-gray-700 hover:text-primary hover:bg-gray-50'
+              }`}
             >
               Semua Pakaian
-            </a>
-            <a 
-              href="#" 
-              className="block py-3 px-2 text-base text-gray-700 hover:text-primary hover:bg-gray-50 rounded-md transition-colors"
-              onClick={() => setIsMenuOpen(false)}
+            </button>
+            <button
+              onClick={() => handleCategoryClick('shirts')}
+              className={`w-full text-left block py-3 px-2 text-base rounded-md transition-colors ${
+                selectedCategory === 'shirts'
+                  ? 'text-gray-900 bg-gray-50'
+                  : 'text-gray-700 hover:text-primary hover:bg-gray-50'
+              }`}
             >
               Baju &amp; Atasan
-            </a>
-            <a 
-              href="#" 
-              className="block py-3 px-2 text-base text-gray-700 hover:text-primary hover:bg-gray-50 rounded-md transition-colors"
-              onClick={() => setIsMenuOpen(false)}
+            </button>
+            <button
+              onClick={() => handleCategoryClick('pants')}
+              className={`w-full text-left block py-3 px-2 text-base rounded-md transition-colors ${
+                selectedCategory === 'pants'
+                  ? 'text-gray-900 bg-gray-50'
+                  : 'text-gray-700 hover:text-primary hover:bg-gray-50'
+              }`}
             >
               Celana
-            </a>
-            <a 
-              href="#" 
-              className="block py-3 px-2 text-base text-gray-700 hover:text-primary hover:bg-gray-50 rounded-md transition-colors"
-              onClick={() => setIsMenuOpen(false)}
+            </button>
+            <button
+              onClick={() => handleCategoryClick('jackets')}
+              className={`w-full text-left block py-3 px-2 text-base rounded-md transition-colors ${
+                selectedCategory === 'jackets'
+                  ? 'text-gray-900 bg-gray-50'
+                  : 'text-gray-700 hover:text-primary hover:bg-gray-50'
+              }`}
             >
               Jaket
-            </a>
-            <a 
-              href="#" 
-              className="block py-3 px-2 text-base text-gray-700 hover:text-primary hover:bg-gray-50 rounded-md transition-colors"
-              onClick={() => setIsMenuOpen(false)}
+            </button>
+            <button
+              onClick={() => handleCategoryClick('dresses')}
+              className={`w-full text-left block py-3 px-2 text-base rounded-md transition-colors ${
+                selectedCategory === 'dresses'
+                  ? 'text-gray-900 bg-gray-50'
+                  : 'text-gray-700 hover:text-primary hover:bg-gray-50'
+              }`}
             >
               Dress
-            </a>
+            </button>
           </nav>
         </SheetContent>
       </Sheet>

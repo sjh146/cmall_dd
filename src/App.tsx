@@ -52,6 +52,7 @@ export default function App() {
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [filters, setFilters] = useState<FilterOptions>({
     categories: [],
     conditions: [],
@@ -132,7 +133,11 @@ export default function App() {
       }
 
       // Category filter
-      if (filters.categories.length > 0 && !filters.categories.includes(product.category)) {
+      if (selectedCategory && selectedCategory !== 'all') {
+        if (product.category !== selectedCategory) {
+          return false;
+        }
+      } else if (filters.categories.length > 0 && !filters.categories.includes(product.category)) {
         return false;
       }
 
@@ -182,7 +187,7 @@ export default function App() {
     }
 
     return filtered;
-  }, [products, searchQuery, filters, sortBy]);
+  }, [products, searchQuery, filters, sortBy, selectedCategory]);
 
   // Cart functions
   const addToCart = async (product: Product) => {
@@ -190,13 +195,12 @@ export default function App() {
       const productId = parseInt(product.id);
       await addToCartAPI(productId, 1);
       
-      // Reload cart from API
       const apiCartItems = await fetchCart();
       const convertedCartItems = apiCartItems.map(convertAPICartItemToCartItem);
       setCartItems(convertedCartItems);
-      } catch (err) {
-        console.error('Failed to add to cart:', err);
-      }
+    } catch (err) {
+      console.error('Failed to add to cart:', err);
+    }
   };
 
   const updateCartQuantity = async (productId: string, quantity: number) => {
@@ -206,7 +210,6 @@ export default function App() {
         return;
       }
 
-      // Find the API cart item ID
       const apiCartItems = await fetchCart();
       const apiCartItem = apiCartItems.find(item => String(item.productId) === productId);
       
@@ -216,7 +219,6 @@ export default function App() {
 
       await updateCartItemAPI(apiCartItem.id, quantity);
       
-      // Reload cart from API
       const updatedCartItems = await fetchCart();
       const convertedCartItems = updatedCartItems.map(convertAPICartItemToCartItem);
       setCartItems(convertedCartItems);
@@ -227,11 +229,6 @@ export default function App() {
 
   const removeFromCart = async (productId: string) => {
     try {
-      const cartItem = cartItems.find(item => item.id === productId);
-      if (!cartItem) return;
-
-      // Find the cart item ID from API (we need to track this)
-      // For now, we'll use a workaround
       const apiCartItems = await fetchCart();
       const apiCartItem = apiCartItems.find(item => String(item.productId) === productId);
       
@@ -269,6 +266,11 @@ export default function App() {
         onCartClick={() => setIsCartOpen(true)}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        selectedCategory={selectedCategory}
+        onCategoryChange={(category) => {
+          setSelectedCategory(category === '' ? 'all' : category);
+          setFilters(prev => ({ ...prev, categories: [] }));
+        }}
       />
       
       <HeroSection />

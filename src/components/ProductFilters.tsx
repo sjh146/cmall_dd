@@ -28,7 +28,8 @@ const categoryLabels: Record<string, string> = {
   'pants': 'Celana',
   'shirts': 'Baju & Atasan',
   'jackets': 'Jaket',
-  'dresses': 'Dress'
+  'dresses': 'Dress',
+  'all': 'Semua Pakaian'
 };
 
 const conditionLabels: Record<string, string> = {

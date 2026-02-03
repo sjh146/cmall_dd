@@ -1,6 +1,3 @@
-import { Button } from './ui/button';
-import { ImageWithFallback } from './figma/ImageWithFallback';
-
 export function HeroSection() {
   return (
     <section className="relative bg-white border-b border-gray-100">
