@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Header } from './components/Header';
 import { HeroSection } from './components/HeroSection';
 import { ProductCard, Product } from './components/ProductCard';
@@ -8,8 +8,39 @@ import { MobileFilters } from './components/MobileFilters';
 import { Button } from './components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './components/ui/select';
 import { Grid, List } from 'lucide-react';
+import { fetchProducts, addToCart as addToCartAPI, fetchCart, updateCartItem as updateCartItemAPI, removeFromCart as removeFromCartAPI, type Product as APIProduct, type CartItem as APICartItem } from './lib/api';
 
-// Mock clothing product data for 307 Second in Indonesian with Rupiah prices
+// Convert API Product to Component Product
+function convertAPIProductToProduct(apiProduct: APIProduct): Product {
+  return {
+    id: String(apiProduct.id),
+    name: apiProduct.name,
+    price: apiProduct.price,
+    originalPrice: apiProduct.originalPrice,
+    image: apiProduct.image,
+    category: apiProduct.category,
+    condition: apiProduct.condition as 'Excellent' | 'Good' | 'Fair',
+    description: apiProduct.description,
+    size: apiProduct.size,
+    brand: apiProduct.brand,
+    color: apiProduct.color,
+    material: apiProduct.material,
+  };
+}
+
+// Convert API CartItem to Component CartItem
+function convertAPICartItemToCartItem(apiCartItem: APICartItem): CartItem {
+  if (!apiCartItem.product) {
+    throw new Error('Cart item must have a product');
+  }
+  const product = convertAPIProductToProduct(apiCartItem.product);
+  return {
+    ...product,
+    quantity: apiCartItem.quantity,
+  };
+}
+
+// Mock data for fallback (will be removed once API is working)
 const mockProducts: Product[] = [
   {
     id: '1',
@@ -184,11 +215,14 @@ type SortOption = 'price-low' | 'price-high' | 'newest' | 'popular';
 
 export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [products, setProducts] = useState<Product[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterOptions>({
     categories: [],
     conditions: [],
@@ -198,12 +232,59 @@ export default function App() {
     colors: []
   });
 
+  // Load products from API
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const apiProducts = await fetchProducts();
+        const convertedProducts = apiProducts.map(convertAPIProductToProduct);
+        setProducts(convertedProducts);
+        
+        // Update price range filter based on actual products
+        if (convertedProducts.length > 0) {
+          const maxPrice = Math.max(...convertedProducts.map(p => p.price));
+          setFilters(prev => ({
+            ...prev,
+            priceRange: [0, maxPrice]
+          }));
+        }
+      } catch (err) {
+        console.error('Failed to load products:', err);
+        setError('제품을 불러오는데 실패했습니다. 잠시 후 다시 시도해주세요.');
+        // Fallback to mock data if API fails
+        setProducts(mockProducts);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProducts();
+  }, []);
+
+  // Load cart from API
+  useEffect(() => {
+    const loadCart = async () => {
+      try {
+        const apiCartItems = await fetchCart();
+        const convertedCartItems = apiCartItems.map(convertAPICartItemToCartItem);
+        setCartItems(convertedCartItems);
+      } catch (err) {
+        console.error('Failed to load cart:', err);
+        // Cart will be empty if API fails
+      }
+    };
+
+    loadCart();
+  }, []);
+
   // Get unique values for filters
-  const availableCategories = Array.from(new Set(mockProducts.map(p => p.category)));
-  const availableBrands = Array.from(new Set(mockProducts.map(p => p.brand).filter((b): b is string => Boolean(b))));
-  const availableSizes = Array.from(new Set(mockProducts.map(p => p.size).filter((s): s is string => Boolean(s))));
-  const availableColors = Array.from(new Set(mockProducts.map(p => p.color).filter((c): c is string => Boolean(c))));
-  const maxPrice = Math.max(...mockProducts.map(p => p.price));
+  const availableCategories: string[] = Array.from(new Set(products.map(p => p.category)));
+  const availableBrands: string[] = Array.from(new Set(products.map(p => p.brand).filter((b): b is string => Boolean(b))));
+  const availableSizes: string[] = Array.from(new Set(products.map(p => p.size).filter((s): s is string => Boolean(s))));
+  const availableColors: string[] = Array.from(new Set(products.map(p => p.color).filter((c): c is string => Boolean(c))));
+  const maxPrice = products.length > 0 ? Math.max(...products.map(p => p.price)) : 1500000;
 
   // Calculate active filters count
   const activeFiltersCount = filters.categories.length + 
@@ -215,7 +296,7 @@ export default function App() {
 
   // Filter and sort products
   const filteredAndSortedProducts = useMemo(() => {
-    let filtered = mockProducts.filter(product => {
+    let filtered = products.filter(product => {
       // Search filter
       if (searchQuery && !product.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
           !product.description.toLowerCase().includes(searchQuery.toLowerCase()) &&
@@ -274,37 +355,94 @@ export default function App() {
     }
 
     return filtered;
-  }, [searchQuery, filters, sortBy]);
+  }, [products, searchQuery, filters, sortBy]);
 
   // Cart functions
-  const addToCart = (product: Product) => {
-    setCartItems(prev => {
-      const existing = prev.find(item => item.id === product.id);
-      if (existing) {
-        return prev.map(item =>
-          item.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
+  const addToCart = async (product: Product) => {
+    try {
+      const productId = parseInt(product.id);
+      await addToCartAPI(productId, 1);
+      
+      // Reload cart from API
+      const apiCartItems = await fetchCart();
+      const convertedCartItems = apiCartItems.map(convertAPICartItemToCartItem);
+      setCartItems(convertedCartItems);
+    } catch (err) {
+      console.error('Failed to add to cart:', err);
+      // Fallback to local state update
+      setCartItems(prev => {
+        const existing = prev.find(item => item.id === product.id);
+        if (existing) {
+          return prev.map(item =>
+            item.id === product.id
+              ? { ...item, quantity: item.quantity + 1 }
+              : item
+          );
+        }
+        return [...prev, { ...product, quantity: 1 }];
+      });
+    }
+  };
+
+  const updateCartQuantity = async (productId: string, quantity: number) => {
+    try {
+      if (quantity === 0) {
+        await removeFromCart(productId);
+        return;
+      }
+
+      // Find the API cart item ID
+      const apiCartItems = await fetchCart();
+      const apiCartItem = apiCartItems.find(item => String(item.productId) === productId);
+      
+      if (!apiCartItem) {
+        throw new Error('Cart item not found');
+      }
+
+      await updateCartItemAPI(apiCartItem.id, quantity);
+      
+      // Reload cart from API
+      const updatedCartItems = await fetchCart();
+      const convertedCartItems = updatedCartItems.map(convertAPICartItemToCartItem);
+      setCartItems(convertedCartItems);
+    } catch (err) {
+      console.error('Failed to update cart:', err);
+      // Fallback to local state update
+      if (quantity === 0) {
+        setCartItems(prev => prev.filter(item => item.id !== productId));
+      } else {
+        setCartItems(prev =>
+          prev.map(item =>
+            item.id === productId ? { ...item, quantity } : item
+          )
         );
       }
-      return [...prev, { ...product, quantity: 1 }];
-    });
-  };
-
-  const updateCartQuantity = (productId: string, quantity: number) => {
-    if (quantity === 0) {
-      removeFromCart(productId);
-      return;
     }
-    setCartItems(prev =>
-      prev.map(item =>
-        item.id === productId ? { ...item, quantity } : item
-      )
-    );
   };
 
-  const removeFromCart = (productId: string) => {
-    setCartItems(prev => prev.filter(item => item.id !== productId));
+  const removeFromCart = async (productId: string) => {
+    try {
+      const cartItem = cartItems.find(item => item.id === productId);
+      if (!cartItem) return;
+
+      // Find the cart item ID from API (we need to track this)
+      // For now, we'll use a workaround
+      const apiCartItems = await fetchCart();
+      const apiCartItem = apiCartItems.find(item => String(item.productId) === productId);
+      
+      if (apiCartItem) {
+        await removeFromCartAPI(apiCartItem.id);
+      }
+      
+      // Reload cart from API
+      const updatedCartItems = await fetchCart();
+      const convertedCartItems = updatedCartItems.map(convertAPICartItemToCartItem);
+      setCartItems(convertedCartItems);
+    } catch (err) {
+      console.error('Failed to remove from cart:', err);
+      // Fallback to local state update
+      setCartItems(prev => prev.filter(item => item.id !== productId));
+    }
   };
 
   const toggleFavorite = (productId: string) => {
@@ -426,8 +564,41 @@ export default function App() {
               </p>
             </div>
 
+            {/* Loading State */}
+            {loading && (
+              <div className="text-center py-20">
+                <p className="text-gray-500 text-base">제품을 불러오는 중...</p>
+              </div>
+            )}
+
+            {/* Error State */}
+            {error && !loading && (
+              <div className="text-center py-20">
+                <p className="text-red-500 text-base mb-4">{error}</p>
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      setLoading(true);
+                      setError(null);
+                      const apiProducts = await fetchProducts();
+                      const convertedProducts = apiProducts.map(convertAPIProductToProduct);
+                      setProducts(convertedProducts);
+                    } catch (err) {
+                      setError('제품을 불러오는데 실패했습니다.');
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  className="bg-white border-gray-200"
+                >
+                  다시 시도
+                </Button>
+              </div>
+            )}
+
             {/* Product Grid */}
-            {filteredAndSortedProducts.length === 0 ? (
+            {!loading && !error && filteredAndSortedProducts.length === 0 ? (
               <div className="text-center py-20">
                 <p className="text-gray-500 text-base mb-4">검색 결과가 없습니다.</p>
                 <Button
@@ -448,7 +619,7 @@ export default function App() {
                   필터 초기화
                 </Button>
               </div>
-            ) : (
+            ) : !loading && !error ? (
               <div className={
                 viewMode === 'grid' 
                   ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8'
@@ -466,7 +637,7 @@ export default function App() {
                   return <ProductCard key={product.id} {...cardProps} />;
                 })}
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </main>
