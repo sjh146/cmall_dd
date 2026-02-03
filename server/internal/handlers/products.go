@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"cmall_dd/internal/models"
+	"cmall_dd/internal/utils"
 )
 
 func GetProducts(db *sql.DB) gin.HandlerFunc {
@@ -87,10 +88,22 @@ func CreateProduct(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
+		// Generate embedding from product information
+		embeddingText := utils.BuildEmbeddingText(
+			req.Name,
+			req.Category,
+			req.Description,
+			req.Brand,
+			req.Color,
+			req.Material,
+		)
+		embedding := utils.GenerateEmbedding(embeddingText)
+		embeddingStr := utils.EmbeddingToString(embedding)
+
 		query := `
 			INSERT INTO cmall_dd (name, price, original_price, image, category, condition, 
-			                      description, size, brand, color, material)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+			                      description, size, brand, color, material, embedding)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::vector)
 			RETURNING id, name, price, original_price, image, category, condition, 
 			          description, size, brand, color, material, created_at, updated_at
 		`
@@ -99,6 +112,7 @@ func CreateProduct(db *sql.DB) gin.HandlerFunc {
 		err := db.QueryRow(query,
 			req.Name, req.Price, req.OriginalPrice, req.Image, req.Category,
 			req.Condition, req.Description, req.Size, req.Brand, req.Color, req.Material,
+			embeddingStr,
 		).Scan(
 			&p.ID, &p.Name, &p.Price, &p.OriginalPrice, &p.Image, &p.Category,
 			&p.Condition, &p.Description, &p.Size, &p.Brand, &p.Color,

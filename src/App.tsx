@@ -40,177 +40,6 @@ function convertAPICartItemToCartItem(apiCartItem: APICartItem): CartItem {
   };
 }
 
-// Mock data for fallback (will be removed once API is working)
-const mockProducts: Product[] = [
-  {
-    id: '1',
-    name: 'Celana Jeans Vintage Levi\'s 501',
-    price: 675000,
-    originalPrice: 1335000,
-    image: '/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_1-30.jpg',
-    category: 'pants',
-    condition: 'Good',
-    description: 'Celana jeans vintage Levi\'s 501 klasik dalam kondisi sangat baik',
-    size: '32W x 32L',
-    brand: 'Levi\'s',
-    color: 'blue',
-    material: 'denim'
-  },
-  {
-    id: '2',
-    name: 'Kaos Band Vintage',
-    price: 375000,
-    originalPrice: 600000,
-    image: '/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_2-00.jpg',
-    category: 'shirts',
-    condition: 'Excellent',
-    description: 'Kaos band vintage asli, lembut dan nyaman',
-    size: 'L',
-    brand: 'Hanes',
-    color: 'black',
-    material: 'cotton'
-  },
-  {
-    id: '3',
-    name: 'Blazer Wol',
-    price: 825000,
-    originalPrice: 2250000,
-    image: '/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_2-30.jpg',
-    category: 'jackets',
-    condition: 'Good',
-    description: 'Blazer wol profesional, cocok untuk keperluan kantor',
-    size: 'M',
-    brand: 'Brooks Brothers',
-    color: 'navy',
-    material: 'wool'
-  },
-  {
-    id: '4',
-    name: 'Dress Musim Panas Motif Bunga',
-    price: 525000,
-    originalPrice: 1200000,
-    image: '/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_3-00.jpg',
-    category: 'dresses',
-    condition: 'Excellent',
-    description: 'Dress cantik dengan motif bunga untuk musim panas, ringan dan mengalir',
-    size: 'S',
-    brand: 'Zara',
-    color: 'floral',
-    material: 'polyester'
-  },
-  {
-    id: '5',
-    name: 'Celana Chino Khaki',
-    price: 420000,
-    originalPrice: 975000,
-    image: '/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_3-20.jpg',
-    category: 'pants',
-    condition: 'Good',
-    description: 'Celana chino khaki yang nyaman, cocok untuk pakaian kasual',
-    size: '34W x 30L',
-    brand: 'Gap',
-    color: 'khaki',
-    material: 'cotton'
-  },
-  {
-    id: '6',
-    name: 'Sweater Oversized',
-    price: 480000,
-    originalPrice: 1125000,
-    image: '/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_4-00.jpg',
-    category: 'shirts',
-    condition: 'Excellent',
-    description: 'Sweater oversized yang hangat, sempurna untuk layering',
-    size: 'M',
-    brand: 'H&M',
-    color: 'cream',
-    material: 'acrylic'
-  },
-  {
-    id: '7',
-    name: 'Jaket Denim',
-    price: 570000,
-    originalPrice: 1425000,
-    image: '/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_1-30.jpg',
-    category: 'jackets',
-    condition: 'Good',
-    description: 'Jaket denim klasik, serbaguna dan timeless',
-    size: 'M',
-    brand: 'Levi\'s',
-    color: 'blue',
-    material: 'denim'
-  },
-  {
-    id: '8',
-    name: 'Celana Formal Hitam',
-    price: 630000,
-    originalPrice: 1275000,
-    image: '/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_2-00.jpg',
-    category: 'pants',
-    condition: 'Excellent',
-    description: 'Celana formal hitam profesional, potongan pas',
-    size: '30W x 32L',
-    brand: 'Banana Republic',
-    color: 'black',
-    material: 'wool blend'
-  },
-  {
-    id: '9',
-    name: 'Kaos Grafis Vintage',
-    price: 330000,
-    image: '/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_2-30.jpg',
-    category: 'shirts',
-    condition: 'Fair',
-    description: 'Kaos grafis vintage keren dengan desain retro',
-    size: 'XL',
-    brand: 'Fruit of the Loom',
-    color: 'white',
-    material: 'cotton'
-  },
-  {
-    id: '10',
-    name: 'Dress Maxi',
-    price: 720000,
-    originalPrice: 1800000,
-    image: '/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_3-00.jpg',
-    category: 'dresses',
-    condition: 'Good',
-    description: 'Dress maxi elegan, sempurna untuk acara khusus',
-    size: 'M',
-    brand: 'Free People',
-    color: 'burgundy',
-    material: 'viscose'
-  },
-  {
-    id: '11',
-    name: 'Celana Korduroy',
-    price: 525000,
-    originalPrice: 1050000,
-    image: '/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_3-20.jpg',
-    category: 'pants',
-    condition: 'Good',
-    description: 'Celana korduroy retro, nyaman dan stylish',
-    size: '32W x 30L',
-    brand: 'Urban Outfitters',
-    color: 'brown',
-    material: 'corduroy'
-  },
-  {
-    id: '12',
-    name: 'Jaket Kulit',
-    price: 1275000,
-    originalPrice: 3000000,
-    image: '/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_4-00.jpg',
-    category: 'jackets',
-    condition: 'Excellent',
-    description: 'Jaket kulit asli, gaya timeless',
-    size: 'L',
-    brand: 'Wilson\'s Leather',
-    color: 'black',
-    material: 'leather'
-  }
-];
-
 type SortOption = 'price-low' | 'price-high' | 'newest' | 'popular';
 
 export default function App() {
@@ -253,8 +82,6 @@ export default function App() {
       } catch (err) {
         console.error('Failed to load products:', err);
         setError('제품을 불러오는데 실패했습니다. 잠시 후 다시 시도해주세요.');
-        // Fallback to mock data if API fails
-        setProducts(mockProducts);
       } finally {
         setLoading(false);
       }
@@ -367,21 +194,9 @@ export default function App() {
       const apiCartItems = await fetchCart();
       const convertedCartItems = apiCartItems.map(convertAPICartItemToCartItem);
       setCartItems(convertedCartItems);
-    } catch (err) {
-      console.error('Failed to add to cart:', err);
-      // Fallback to local state update
-      setCartItems(prev => {
-        const existing = prev.find(item => item.id === product.id);
-        if (existing) {
-          return prev.map(item =>
-            item.id === product.id
-              ? { ...item, quantity: item.quantity + 1 }
-              : item
-          );
-        }
-        return [...prev, { ...product, quantity: 1 }];
-      });
-    }
+      } catch (err) {
+        console.error('Failed to add to cart:', err);
+      }
   };
 
   const updateCartQuantity = async (productId: string, quantity: number) => {
@@ -407,16 +222,6 @@ export default function App() {
       setCartItems(convertedCartItems);
     } catch (err) {
       console.error('Failed to update cart:', err);
-      // Fallback to local state update
-      if (quantity === 0) {
-        setCartItems(prev => prev.filter(item => item.id !== productId));
-      } else {
-        setCartItems(prev =>
-          prev.map(item =>
-            item.id === productId ? { ...item, quantity } : item
-          )
-        );
-      }
     }
   };
 
@@ -440,8 +245,6 @@ export default function App() {
       setCartItems(convertedCartItems);
     } catch (err) {
       console.error('Failed to remove from cart:', err);
-      // Fallback to local state update
-      setCartItems(prev => prev.filter(item => item.id !== productId));
     }
   };
 

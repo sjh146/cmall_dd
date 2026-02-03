@@ -10,7 +10,7 @@ Go 언어로 작성된 쇼핑몰 백엔드 API 서버입니다.
 - **ORM**: database/sql (표준 라이브러리)
 
 ## 설치 및 실행
-
+sudo -u postgres psql -d cmall_dd -c "INSERT INTO cmall_dd (name, price, original_price, image, category, condition, description, size, brand, color, material) VALUES ('클래식 데님 자켓', 890000, 1500000, '/images/sample-product.jpg', 'jackets', 'Excellent', '빈티지 스타일의 클래식 데님 자켓입니다. 내구성이 뛰어나고 다양한 스타일에 매치하기 좋습니다.', 'M', 'Levi''s', 'blue', 'denim') RETURNING id, name, price;"
 ### 1. 의존성 설치
 
 ```bash

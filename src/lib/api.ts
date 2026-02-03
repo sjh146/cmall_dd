@@ -46,51 +46,6 @@ export async function fetchProducts(): Promise<Product[]> {
   return response.json();
 }
 
-export async function fetchProduct(id: number): Promise<Product> {
-  const response = await fetch(`${API_BASE_URL}/products/${id}`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch product');
-  }
-  return response.json();
-}
-
-export async function createProduct(product: Partial<Product>): Promise<Product> {
-  const response = await fetch(`${API_BASE_URL}/products`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(product),
-  });
-  if (!response.ok) {
-    throw new Error('Failed to create product');
-  }
-  return response.json();
-}
-
-export async function updateProduct(id: number, product: Partial<Product>): Promise<Product> {
-  const response = await fetch(`${API_BASE_URL}/products/${id}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(product),
-  });
-  if (!response.ok) {
-    throw new Error('Failed to update product');
-  }
-  return response.json();
-}
-
-export async function deleteProduct(id: number): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/products/${id}`, {
-    method: 'DELETE',
-  });
-  if (!response.ok) {
-    throw new Error('Failed to delete product');
-  }
-}
-
 // Cart API
 export async function fetchCart(): Promise<CartItem[]> {
   const sessionId = getSessionId();
