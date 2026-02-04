@@ -33,3 +33,10 @@ deps:
 dev:
 	air
 
+# Backup database to G drive (WSL)
+backup:
+	bash scripts/backup_database.sh
+
+# Restore database from G drive (WSL)
+restore:
+	bash scripts/restore_database.sh

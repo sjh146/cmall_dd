@@ -118,6 +118,52 @@ server/
 └── README.md
 ```
 
+## 데이터베이스 백업 및 복원
+
+### 백업
+
+데이터베이스를 G 드라이브로 백업합니다:
+
+**WSL에서 실행:**
+```bash
+bash scripts/backup_database.sh
+```
+
+**PowerShell에서 실행:**
+```powershell
+.\scripts\backup_database.ps1
+```
+
+**Makefile 사용:**
+```bash
+make backup
+```
+
+백업 파일은 `G:\cmall_dd_backups\` 디렉토리에 저장되며, 파일명에 타임스탬프가 포함됩니다.
+
+### 복원
+
+백업 파일에서 데이터베이스를 복원합니다:
+
+**WSL에서 실행:**
+```bash
+bash scripts/restore_database.sh [백업파일경로]
+```
+
+**PowerShell에서 실행:**
+```powershell
+.\scripts\restore_database.ps1 -BackupFile "G:\cmall_dd_backups\cmall_dd_backup_20240203_120000.dump"
+```
+
+**Makefile 사용:**
+```bash
+make restore
+```
+
+백업 파일 경로를 지정하지 않으면 가장 최근 백업 파일을 사용합니다.
+
+⚠️ **주의**: 복원 시 기존 데이터베이스가 덮어씌워집니다.
+
 ## 참고사항
 
 - pgvector 확장은 AI 기반 검색 기능을 위해 사용할 수 있습니다.
