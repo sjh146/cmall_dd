@@ -7,7 +7,6 @@ import (
 	"log"
 	"math"
 	"os"
-	"path/filepath"
 	"strings"
 	"unicode"
 
@@ -30,12 +29,15 @@ type ProductData struct {
 }
 
 
-var productMapping = map[string]ProductData{
-	"frame_1-30.jpg": {
+// 10개 상품 데이터 정의
+var products = []ProductData{
+	// 1-6: 기존 이미지 사용
+	{
 		Name:         "Celana Jeans Vintage Levi's 501",
 		Price:        675000,
 		OriginalPrice: intPtr(1335000),
-		Category:      "pants",
+		Image:        "/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_1-30.jpg",
+		Category:     "pants",
 		Condition:    "Good",
 		Description:  "Celana jeans vintage Levi's 501 klasik dalam kondisi sangat baik",
 		Size:         stringPtr("32W x 32L"),
@@ -43,11 +45,12 @@ var productMapping = map[string]ProductData{
 		Color:        stringPtr("blue"),
 		Material:     stringPtr("denim"),
 	},
-	"frame_2-00.jpg": {
+	{
 		Name:         "Kaos Band Vintage",
 		Price:        375000,
 		OriginalPrice: intPtr(600000),
-		Category:      "shirts",
+		Image:        "/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_2-00.jpg",
+		Category:     "shirts",
 		Condition:    "Excellent",
 		Description:  "Kaos band vintage asli, lembut dan nyaman",
 		Size:         stringPtr("L"),
@@ -55,11 +58,12 @@ var productMapping = map[string]ProductData{
 		Color:        stringPtr("black"),
 		Material:     stringPtr("cotton"),
 	},
-	"frame_2-30.jpg": {
-		Name:         "Blazer Wol",
+	{
+		Name:         "Blazer Wol Profesional",
 		Price:        825000,
 		OriginalPrice: intPtr(2250000),
-		Category:      "jackets",
+		Image:        "/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_2-30.jpg",
+		Category:     "jackets",
 		Condition:    "Good",
 		Description:  "Blazer wol profesional, cocok untuk keperluan kantor",
 		Size:         stringPtr("M"),
@@ -67,11 +71,12 @@ var productMapping = map[string]ProductData{
 		Color:        stringPtr("navy"),
 		Material:     stringPtr("wool"),
 	},
-	"frame_3-00.jpg": {
+	{
 		Name:         "Dress Musim Panas Motif Bunga",
 		Price:        525000,
 		OriginalPrice: intPtr(1200000),
-		Category:      "dresses",
+		Image:        "/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_3-00.jpg",
+		Category:     "dresses",
 		Condition:    "Excellent",
 		Description:  "Dress cantik dengan motif bunga untuk musim panas, ringan dan mengalir",
 		Size:         stringPtr("S"),
@@ -79,11 +84,12 @@ var productMapping = map[string]ProductData{
 		Color:        stringPtr("floral"),
 		Material:     stringPtr("polyester"),
 	},
-	"frame_3-20.jpg": {
+	{
 		Name:         "Celana Chino Khaki",
 		Price:        420000,
 		OriginalPrice: intPtr(975000),
-		Category:      "pants",
+		Image:        "/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_3-20.jpg",
+		Category:     "pants",
 		Condition:    "Good",
 		Description:  "Celana chino khaki yang nyaman, cocok untuk pakaian kasual",
 		Size:         stringPtr("34W x 30L"),
@@ -91,17 +97,71 @@ var productMapping = map[string]ProductData{
 		Color:        stringPtr("khaki"),
 		Material:     stringPtr("cotton"),
 	},
-	"frame_4-00.jpg": {
-		Name:         "Sweater Oversized",
+	{
+		Name:         "Sweater Oversized Hangat",
 		Price:        480000,
 		OriginalPrice: intPtr(1125000),
-		Category:      "shirts",
+		Image:        "/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_4-00.jpg",
+		Category:     "shirts",
 		Condition:    "Excellent",
 		Description:  "Sweater oversized yang hangat, sempurna untuk layering",
 		Size:         stringPtr("M"),
 		Brand:        stringPtr("H&M"),
 		Color:        stringPtr("cream"),
 		Material:     stringPtr("acrylic"),
+	},
+	// 7-10: 이미지 재사용하여 다른 상품 정보로 생성
+	{
+		Name:         "Celana Jeans Slim Fit Hitam",
+		Price:        750000,
+		OriginalPrice: intPtr(1450000),
+		Image:        "/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_1-30.jpg",
+		Category:     "pants",
+		Condition:    "Excellent",
+		Description:  "Celana jeans slim fit hitam modern, cocok untuk gaya kasual dan formal",
+		Size:         stringPtr("30W x 32L"),
+		Brand:        stringPtr("Uniqlo"),
+		Color:        stringPtr("black"),
+		Material:     stringPtr("denim"),
+	},
+	{
+		Name:         "Kaos Polo Klasik Putih",
+		Price:        295000,
+		OriginalPrice: intPtr(550000),
+		Image:        "/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_2-00.jpg",
+		Category:     "shirts",
+		Condition:    "Good",
+		Description:  "Kaos polo klasik putih, bahan berkualitas tinggi dan nyaman dipakai",
+		Size:         stringPtr("M"),
+		Brand:        stringPtr("Ralph Lauren"),
+		Color:        stringPtr("white"),
+		Material:     stringPtr("cotton"),
+	},
+	{
+		Name:         "Dress Midi Elegan",
+		Price:        650000,
+		OriginalPrice: intPtr(1500000),
+		Image:        "/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_3-00.jpg",
+		Category:     "dresses",
+		Condition:    "Excellent",
+		Description:  "Dress midi elegan dengan potongan yang menawan, cocok untuk acara formal",
+		Size:         stringPtr("M"),
+		Brand:        stringPtr("Mango"),
+		Color:        stringPtr("navy"),
+		Material:     stringPtr("polyester"),
+	},
+	{
+		Name:         "Jaket Denim Vintage",
+		Price:        890000,
+		OriginalPrice: intPtr(1800000),
+		Image:        "/images/🇰🇷🇷🇸Korean-Serbian Couple Q&A： Marriage, How We Met & Life Together ｜ 한국 세르비아인 커플_frame_2-30.jpg",
+		Category:     "jackets",
+		Condition:    "Good",
+		Description:  "Jaket denim vintage dengan detail klasik, sempurna untuk gaya kasual",
+		Size:         stringPtr("L"),
+		Brand:        stringPtr("Levi's"),
+		Color:        stringPtr("blue"),
+		Material:     stringPtr("denim"),
 	},
 }
 
@@ -126,14 +186,6 @@ func generateEmbedding(text string) []float32 {
 	
 	// Split into words
 	words := strings.Fields(normalized)
-	
-	// Create word frequency map
-	wordFreq := make(map[string]int)
-	for _, word := range words {
-		if len(word) > 2 { // Ignore very short words
-			wordFreq[word]++
-		}
-	}
 	
 	// Generate 1536-dimensional vector
 	dimension := 1536
@@ -203,19 +255,26 @@ func insertProductWithEmbedding(db *sql.DB, product ProductData, embedding []flo
 	}
 	embeddingStr += "]"
 	
-	// Check if product already exists
+	// Check if product already exists by name
 	var existingID int
-	checkQuery := `SELECT id FROM cmall_dd WHERE image = $1`
-	err := db.QueryRow(checkQuery, product.Image).Scan(&existingID)
+	checkQuery := `SELECT id FROM cmall_dd WHERE name = $1`
+	err := db.QueryRow(checkQuery, product.Name).Scan(&existingID)
 	
 	if err == nil {
-		// Product exists, update embedding
-		updateQuery := `UPDATE cmall_dd SET embedding = $1::vector WHERE id = $2`
-		_, err := db.Exec(updateQuery, embeddingStr, existingID)
+		// Product exists, update embedding and other fields
+		updateQuery := `UPDATE cmall_dd SET 
+			price = $1, original_price = $2, image = $3, category = $4, 
+			condition = $5, description = $6, size = $7, brand = $8, 
+			color = $9, material = $10, embedding = $11::vector 
+			WHERE id = $12`
+		_, err := db.Exec(updateQuery,
+			product.Price, product.OriginalPrice, product.Image, product.Category,
+			product.Condition, product.Description, product.Size, product.Brand,
+			product.Color, product.Material, embeddingStr, existingID)
 		if err != nil {
-			return fmt.Errorf("failed to update embedding: %w", err)
+			return fmt.Errorf("failed to update product: %w", err)
 		}
-		log.Printf("Updated embedding for product ID %d: %s", existingID, product.Name)
+		log.Printf("Updated product ID %d: %s", existingID, product.Name)
 		return nil
 	} else if err != sql.ErrNoRows {
 		return fmt.Errorf("failed to check existing product: %w", err)
@@ -297,61 +356,12 @@ func main() {
 	
 	log.Println("Connected to database successfully")
 	
-	// Get images directory path
-	imagesDir := os.Getenv("IMAGES_DIR")
-	if imagesDir == "" {
-		// Default to public/images relative to project root
-		imagesDir = filepath.Join("..", "..", "public", "images")
-	}
-	
-	log.Printf("Scanning images directory: %s", imagesDir)
-	
-	// Read image files
-	files, err := os.ReadDir(imagesDir)
-	if err != nil {
-		log.Fatalf("Failed to read images directory: %v", err)
-	}
+	log.Printf("Processing %d products...", len(products))
 	
 	processed := 0
-	for _, file := range files {
-		if file.IsDir() {
-			continue
-		}
-		
-		filename := file.Name()
-		if !strings.HasSuffix(strings.ToLower(filename), ".jpg") {
-			continue
-		}
-		
-		// Extract frame identifier from filename
-		var frameID string
-		if strings.Contains(filename, "frame_1-30") {
-			frameID = "frame_1-30.jpg"
-		} else if strings.Contains(filename, "frame_2-00") {
-			frameID = "frame_2-00.jpg"
-		} else if strings.Contains(filename, "frame_2-30") {
-			frameID = "frame_2-30.jpg"
-		} else if strings.Contains(filename, "frame_3-00") {
-			frameID = "frame_3-00.jpg"
-		} else if strings.Contains(filename, "frame_3-20") {
-			frameID = "frame_3-20.jpg"
-		} else if strings.Contains(filename, "frame_4-00") {
-			frameID = "frame_4-00.jpg"
-		} else {
-			log.Printf("Skipping unknown image: %s", filename)
-			continue
-		}
-		
-		product, exists := productMapping[frameID]
-		if !exists {
-			log.Printf("No product mapping for: %s", frameID)
-			continue
-		}
-		
-		// Set image path
-		product.Image = "/images/" + filename
-		
-		log.Printf("Processing: %s -> %s", filename, product.Name)
+	for i, product := range products {
+		log.Printf("\n[%d/%d] Processing: %s", i+1, len(products), product.Name)
+		log.Printf("Image: %s", product.Image)
 		
 		// Build embedding text
 		embeddingText := buildEmbeddingText(product)
@@ -369,7 +379,7 @@ func main() {
 		}
 		
 		processed++
-		log.Printf("Successfully processed: %s\n", product.Name)
+		log.Printf("Successfully processed: %s", product.Name)
 	}
 	
 	log.Printf("\nCompleted! Processed %d products", processed)

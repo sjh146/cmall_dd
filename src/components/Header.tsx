@@ -34,7 +34,7 @@ export function Header({ cartItemCount, onCartClick, searchQuery, onSearchChange
 
   return (
     <>
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-50">
+      <header className="bg-background border-b border-border sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Mobile Menu Button */}
@@ -42,64 +42,63 @@ export function Header({ cartItemCount, onCartClick, searchQuery, onSearchChange
               variant="ghost"
               size="sm"
               onClick={() => setIsMenuOpen(true)}
-              className="md:hidden p-2 hover:bg-gray-50"
+              className="md:hidden p-2 hover:bg-secondary"
             >
-              <Menu className="h-5 w-5 text-gray-700" />
+              <Menu className="h-5 w-5 text-foreground" />
             </Button>
 
-            {/* Logo */}
-            <div className="flex items-center flex-1 md:flex-none justify-center md:justify-start">
-              <h1 className="text-xl font-semibold text-gray-900 tracking-tight">307 Second</h1>
-            </div>
+            <h1 className="text-5xl md:text-7xl font-bold tracking-wider" style={{ fontFamily: 'Permanent Marker, cursive' }}>
+              yun&nora
+            </h1>
 
             {/* Desktop Navigation - Hidden on mobile */}
-            <nav className="hidden md:flex space-x-8 flex-1 justify-center">
+            <nav className="hidden md:flex space-x-6 flex-1 justify-center">
               <button
                 onClick={() => handleCategoryClick('all')}
-                className={`text-sm font-medium transition-colors ${
+                className={`text-sm font-bold uppercase tracking-wider transition-all ${
                   selectedCategory === 'all' || selectedCategory === ''
-                    ? 'text-gray-900'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'text-primary'
+                    : 'text-gray-400 hover:text-primary'
                 }`}
               >
                 Semua Pakaian
               </button>
               <button
                 onClick={() => handleCategoryClick('shirts')}
-                className={`text-sm font-medium transition-colors ${
+                className={`text-sm font-bold uppercase tracking-wider transition-all ${
                   selectedCategory === 'shirts'
-                    ? 'text-gray-900'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'text-primary'
+                    : 'text-gray-400 hover:text-primary'
                 }`}
               >
                 Baju & Atasan
               </button>
               <button
                 onClick={() => handleCategoryClick('pants')}
-                className={`text-sm font-medium transition-colors ${
+                className={`text-sm font-bold uppercase tracking-wider transition-all ${
                   selectedCategory === 'pants'
-                    ? 'text-gray-900'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'text-primary'
+                    : 'text-gray-400 hover:text-primary'
                 }`}
               >
                 Celana
               </button>
               <button
                 onClick={() => handleCategoryClick('jackets')}
-                className={`text-sm font-medium transition-colors ${
+                className={`text-sm font-bold uppercase tracking-wider transition-all ${
                   selectedCategory === 'jackets'
-                    ? 'text-gray-900'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'text-primary'
+                    : 'text-gray-400 hover:text-primary'
                 }`}
               >
                 Jaket
               </button>
               <button
                 onClick={() => handleCategoryClick('dresses')}
-                className={`text-sm font-medium transition-colors ${
+                className={`text-sm font-bold uppercase tracking-wider transition-all ${
                   selectedCategory === 'dresses'
-                    ? 'text-gray-900'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'text-primary'
+                    : 'text-gray-400 hover:text-primary'
                 }`}
               >
                 Dress
@@ -115,7 +114,7 @@ export function Header({ cartItemCount, onCartClick, searchQuery, onSearchChange
                   placeholder="브랜드, 상품명 검색"
                   value={searchQuery}
                   onChange={(e) => onSearchChange(e.target.value)}
-                  className="pl-11 h-10 bg-gray-50 border-0 rounded-md focus:bg-white focus:ring-1 focus:ring-gray-300"
+                  className="pl-11 h-10 bg-secondary border-0 rounded-md focus:bg-secondary focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground"
                 />
               </div>
             </div>
@@ -126,20 +125,20 @@ export function Header({ cartItemCount, onCartClick, searchQuery, onSearchChange
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsSearchOpen(!isSearchOpen)}
-                className="md:hidden p-2 hover:bg-gray-50"
+                className="md:hidden p-2 hover:bg-secondary"
               >
-                <Search className="h-5 w-5 text-gray-700" />
+                <Search className="h-5 w-5 text-foreground" />
               </Button>
               
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={onCartClick}
-                className="relative p-2 hover:bg-gray-50"
+                className="relative p-2 hover:bg-secondary"
               >
-                <ShoppingCart className="h-5 w-5 text-gray-700" />
+                <ShoppingCart className="h-5 w-5 text-foreground" />
                 {cartItemCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 bg-black text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center font-medium">
+                  <span className="absolute -top-0.5 -right-0.5 bg-primary text-primary-foreground text-[10px] rounded-full h-4 w-4 flex items-center justify-center font-bold">
                     {cartItemCount}
                   </span>
                 )}
@@ -157,7 +156,7 @@ export function Header({ cartItemCount, onCartClick, searchQuery, onSearchChange
                   placeholder="브랜드, 상품명 검색"
                   value={searchQuery}
                   onChange={(e) => onSearchChange(e.target.value)}
-                  className="pl-10 h-10 bg-gray-50 border-0 rounded-md"
+                  className="pl-10 h-10 bg-secondary border-0 rounded-md text-foreground placeholder:text-muted-foreground"
                   autoFocus
                 />
               </div>
@@ -168,12 +167,14 @@ export function Header({ cartItemCount, onCartClick, searchQuery, onSearchChange
 
       {/* Mobile Navigation Sheet */}
       <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-        <SheetContent side="left" className="w-80">
+        <SheetContent side="left" className="w-80 bg-background">
           <SheetHeader>
             <SheetTitle className="text-left">
-              <div className="flex items-center">
-                <span className="text-xl font-bold text-primary">307 Second</span>
-                <span className="ml-2 text-sm text-muted-foreground">Toko Thrift</span>
+              <div className="flex flex-col items-start">
+                <span className="text-4xl font-bold" style={{ fontFamily: 'Permanent Marker, cursive' }}>
+                  yun&nora
+                </span>
+                <span className="text-sm text-muted-foreground">Thrift Shop</span>
               </div>
             </SheetTitle>
           </SheetHeader>
@@ -181,50 +182,50 @@ export function Header({ cartItemCount, onCartClick, searchQuery, onSearchChange
           <nav className="mt-8 space-y-4">
             <button
               onClick={() => handleCategoryClick('all')}
-              className={`w-full text-left block py-3 px-2 text-base rounded-md transition-colors ${
+              className={`w-full text-left block py-3 px-2 text-base font-bold uppercase tracking-wider rounded-md transition-all ${
                 selectedCategory === 'all' || selectedCategory === ''
-                  ? 'text-gray-900 bg-gray-50'
-                  : 'text-gray-700 hover:text-primary hover:bg-gray-50'
+                  ? 'text-primary bg-secondary'
+                  : 'text-gray-400 hover:text-primary hover:bg-secondary'
               }`}
             >
               Semua Pakaian
             </button>
             <button
               onClick={() => handleCategoryClick('shirts')}
-              className={`w-full text-left block py-3 px-2 text-base rounded-md transition-colors ${
+              className={`w-full text-left block py-3 px-2 text-base font-bold uppercase tracking-wider rounded-md transition-all ${
                 selectedCategory === 'shirts'
-                  ? 'text-gray-900 bg-gray-50'
-                  : 'text-gray-700 hover:text-primary hover:bg-gray-50'
+                  ? 'text-primary bg-secondary'
+                  : 'text-gray-400 hover:text-primary hover:bg-secondary'
               }`}
             >
-              Baju &amp; Atasan
+              Baju & Atasan
             </button>
             <button
               onClick={() => handleCategoryClick('pants')}
-              className={`w-full text-left block py-3 px-2 text-base rounded-md transition-colors ${
+              className={`w-full text-left block py-3 px-2 text-base font-bold uppercase tracking-wider rounded-md transition-all ${
                 selectedCategory === 'pants'
-                  ? 'text-gray-900 bg-gray-50'
-                  : 'text-gray-700 hover:text-primary hover:bg-gray-50'
+                  ? 'text-primary bg-secondary'
+                  : 'text-gray-400 hover:text-primary hover:bg-secondary'
               }`}
             >
               Celana
             </button>
             <button
               onClick={() => handleCategoryClick('jackets')}
-              className={`w-full text-left block py-3 px-2 text-base rounded-md transition-colors ${
+              className={`w-full text-left block py-3 px-2 text-base font-bold uppercase tracking-wider rounded-md transition-all ${
                 selectedCategory === 'jackets'
-                  ? 'text-gray-900 bg-gray-50'
-                  : 'text-gray-700 hover:text-primary hover:bg-gray-50'
+                  ? 'text-primary bg-secondary'
+                  : 'text-gray-400 hover:text-primary hover:bg-secondary'
               }`}
             >
               Jaket
             </button>
             <button
               onClick={() => handleCategoryClick('dresses')}
-              className={`w-full text-left block py-3 px-2 text-base rounded-md transition-colors ${
+              className={`w-full text-left block py-3 px-2 text-base font-bold uppercase tracking-wider rounded-md transition-all ${
                 selectedCategory === 'dresses'
-                  ? 'text-gray-900 bg-gray-50'
-                  : 'text-gray-700 hover:text-primary hover:bg-gray-50'
+                  ? 'text-primary bg-secondary'
+                  : 'text-gray-400 hover:text-primary hover:bg-secondary'
               }`}
             >
               Dress

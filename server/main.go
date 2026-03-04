@@ -9,6 +9,7 @@ import (
 	"github.com/joho/godotenv"
 	"cmall_dd/internal/database"
 	"cmall_dd/internal/handlers"
+	openclawHandler "cmall_dd/internal/openclaw"
 )
 
 func main() {
@@ -53,6 +54,16 @@ func main() {
 		api.POST("/cart", handlers.AddToCart(db))
 		api.PUT("/cart/:id", handlers.UpdateCartItem(db))
 		api.DELETE("/cart/:id", handlers.RemoveFromCart(db))
+		
+		// OpenClaw browser automation routes
+		openclawBaseURL := os.Getenv("OPENCLAW_BASE_URL")
+		openclaw := openclawHandler.NewHandler(db, openclawBaseURL)
+		openclawGroup := api.Group("/openclaw")
+		{
+			openclawGroup.GET("/health", openclaw.HealthCheck)
+			openclawGroup.POST("/click", openclaw.ClickElement)
+			openclawGroup.POST("/snapshot", openclaw.TakeSnapshot)
+		}
 	}
 
 	port := os.Getenv("PORT")

@@ -260,7 +260,7 @@ export default function App() {
   const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-background">
       <Header
         cartItemCount={cartItemCount}
         onCartClick={() => setIsCartOpen(true)}
@@ -305,7 +305,7 @@ export default function App() {
                 activeFiltersCount={activeFiltersCount}
               />
               <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
-                <SelectTrigger className="flex-1 bg-gray-50 border-0">
+                <SelectTrigger className="flex-1 bg-secondary border-border text-foreground">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -320,17 +320,17 @@ export default function App() {
             {/* Desktop Toolbar */}
             <div className="hidden lg:flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 mb-1">
+                <h2 className="text-lg font-semibold text-foreground mb-1">
                   {searchQuery ? `"${searchQuery}" 검색 결과` : '전체 상품'}
                 </h2>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   총 {filteredAndSortedProducts.length}개
                 </p>
               </div>
               
               <div className="flex items-center gap-3">
                 <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
-                  <SelectTrigger className="w-40 h-9 bg-white border-gray-200 text-sm">
+                  <SelectTrigger className="w-40 h-9 bg-card border-border text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -395,7 +395,7 @@ export default function App() {
                       setLoading(false);
                     }
                   }}
-                  className="bg-white border-gray-200"
+                  className="bg-secondary border-border"
                 >
                   다시 시도
                 </Button>
@@ -405,7 +405,7 @@ export default function App() {
             {/* Product Grid */}
             {!loading && !error && filteredAndSortedProducts.length === 0 ? (
               <div className="text-center py-20">
-                <p className="text-gray-500 text-base mb-4">검색 결과가 없습니다.</p>
+                <p className="text-muted-foreground text-base mb-4">검색 결과가 없습니다.</p>
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -419,7 +419,7 @@ export default function App() {
                       colors: []
                     });
                   }}
-                  className="bg-white border-gray-200"
+                  className="bg-secondary border-border"
                 >
                   필터 초기화
                 </Button>

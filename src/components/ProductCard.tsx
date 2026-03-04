@@ -41,7 +41,7 @@ export function ProductCard({ product, onAddToCart, onToggleFavorite, isFavorite
 
   if (isMobile) {
     return (
-      <div className="bg-white border-b border-gray-100 pb-4">
+      <div className="bg-card border-b border-border pb-4">
         <div className="flex gap-3">
           <div className="relative flex-shrink-0 w-20 h-20">
             <ImageWithFallback
@@ -50,7 +50,7 @@ export function ProductCard({ product, onAddToCart, onToggleFavorite, isFavorite
               className="w-full h-full object-cover"
             />
             {discountPercentage > 0 && (
-              <div className="absolute top-0 left-0 bg-black text-white text-[10px] font-semibold px-1.5 py-0.5">
+              <div className="absolute top-0 left-0 bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5">
                 {discountPercentage}%
               </div>
             )}
@@ -58,20 +58,20 @@ export function ProductCard({ product, onAddToCart, onToggleFavorite, isFavorite
           
           <div className="flex-1 min-w-0">
             {product.brand && (
-              <p className="text-xs text-gray-500 font-medium mb-0.5">{product.brand}</p>
+              <p className="text-xs text-muted-foreground font-medium mb-0.5 uppercase tracking-wider">{product.brand}</p>
             )}
             
-            <h3 className="text-sm text-gray-900 mb-1.5 line-clamp-2 leading-snug">{product.name}</h3>
+            <h3 className="text-sm text-foreground mb-1.5 line-clamp-2 leading-snug font-medium">{product.name}</h3>
             
             <div className="flex items-baseline gap-1.5 mb-1">
-              <span className="text-sm font-bold text-gray-900">{formatPrice(product.price)}</span>
+              <span className="text-sm font-bold text-primary">{formatPrice(product.price)}</span>
               {product.originalPrice && (
-                <span className="text-xs text-gray-400 line-through">{formatPrice(product.originalPrice)}</span>
+                <span className="text-xs text-muted-foreground line-through">{formatPrice(product.originalPrice)}</span>
               )}
             </div>
             
             {product.size && (
-              <p className="text-xs text-gray-400">{product.size}</p>
+              <p className="text-xs text-muted-foreground">SIZE: {product.size}</p>
             )}
           </div>
         </div>
@@ -80,17 +80,17 @@ export function ProductCard({ product, onAddToCart, onToggleFavorite, isFavorite
   }
 
   return (
-    <div className="bg-white group cursor-pointer">
+    <div className="bg-card group cursor-pointer border border-border hover:border-primary transition-all duration-300">
       <div className="relative overflow-hidden aspect-square mb-3">
         <ImageWithFallback
           src={product.image}
           alt={product.name}
-          className="w-full h-full object-cover group-hover:opacity-90 transition-opacity duration-200"
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
         />
         <Button
           variant="ghost"
           size="sm"
-          className={`absolute top-3 right-3 p-2 rounded-full bg-white/90 hover:bg-white ${isFavorite ? 'text-red-500' : 'text-gray-600'}`}
+          className={`absolute top-3 right-3 p-2 rounded-full bg-black/50 hover:bg-primary ${isFavorite ? 'text-red-500' : 'text-white'}`}
           onClick={(e) => {
             e.stopPropagation();
             onToggleFavorite(product.id);
@@ -99,28 +99,28 @@ export function ProductCard({ product, onAddToCart, onToggleFavorite, isFavorite
           <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
         </Button>
         {discountPercentage > 0 && (
-          <div className="absolute top-3 left-3 bg-black text-white text-xs font-semibold px-2 py-1">
-            {discountPercentage}%
+          <div className="absolute top-3 left-3 bg-primary text-primary-foreground text-xs font-bold px-2 py-1">
+            {discountPercentage}% OFF
           </div>
         )}
       </div>
       
-      <div className="space-y-1">
+      <div className="space-y-1 p-3">
         {product.brand && (
-          <p className="text-xs text-gray-500 font-medium">{product.brand}</p>
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{product.brand}</p>
         )}
         
-        <h3 className="text-sm text-gray-900 line-clamp-2 leading-snug">{product.name}</h3>
+        <h3 className="text-sm text-foreground line-clamp-2 leading-snug font-medium">{product.name}</h3>
         
         <div className="flex items-baseline gap-2 pt-1">
-          <span className="text-base font-bold text-gray-900">{formatPrice(product.price)}</span>
+          <span className="text-lg font-bold text-primary">{formatPrice(product.price)}</span>
           {product.originalPrice && (
-            <span className="text-xs text-gray-400 line-through">{formatPrice(product.originalPrice)}</span>
+            <span className="text-xs text-muted-foreground line-through">{formatPrice(product.originalPrice)}</span>
           )}
         </div>
         
         {product.size && (
-          <p className="text-xs text-gray-400 pt-1">{product.size}</p>
+          <p className="text-xs text-muted-foreground pt-1 uppercase">SIZE: {product.size}</p>
         )}
       </div>
     </div>

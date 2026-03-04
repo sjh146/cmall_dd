@@ -39,7 +39,7 @@ export function ShoppingCart({
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="w-full sm:max-w-lg">
+      <SheetContent className="w-full sm:max-w-lg bg-background">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <ShoppingBag className="h-5 w-5" />
@@ -51,8 +51,8 @@ export function ShoppingCart({
           {cartItems.length === 0 ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <ShoppingBag className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">Keranjang Anda kosong</p>
+                <ShoppingBag className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">Keranjang Anda kosong</p>
                 <Button onClick={onClose} className="mt-4">
                   Lanjutkan Berbelanja
                 </Button>
@@ -63,15 +63,15 @@ export function ShoppingCart({
               <div className="flex-1 overflow-auto py-4">
                 <div className="space-y-4">
                   {cartItems.map((item) => (
-                    <div key={item.id} className="flex gap-4 p-4 border rounded-lg">
+                    <div key={item.id} className="flex gap-4 p-4 border border-border rounded-lg bg-card">
                       <ImageWithFallback
                         src={item.image}
                         alt={item.name}
                         className="w-16 h-16 object-cover rounded"
                       />
                       <div className="flex-1">
-                        <h4 className="font-medium text-sm mb-1">{item.name}</h4>
-                        <p className="text-sm text-gray-500 mb-2">{formatPrice(item.price)}</p>
+                        <h4 className="font-medium text-sm mb-1 text-foreground">{item.name}</h4>
+                        <p className="text-sm text-muted-foreground mb-2">{formatPrice(item.price)}</p>
                         <div className="flex items-center gap-2">
                           <Button
                             variant="outline"
@@ -97,7 +97,7 @@ export function ShoppingCart({
                           variant="ghost"
                           size="sm"
                           onClick={() => onRemoveItem(item.id)}
-                          className="h-8 w-8 p-0 text-gray-400 hover:text-red-500"
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
                         >
                           <X className="h-4 w-4" />
                         </Button>
