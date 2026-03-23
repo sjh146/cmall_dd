@@ -49,7 +49,7 @@ export function MobileFilters({
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <Filter className="h-5 w-5" />
-              Filter Produk
+              Filters
             </SheetTitle>
           </SheetHeader>
           <div className="overflow-y-auto h-full pb-16 mt-4">

@@ -1,32 +1,25 @@
-# CMall DD Backend API
+# DevMall Backend API
 
-Go 언어로 작성된 쇼핑몰 백엔드 API 서버입니다.
+A backend API server for Software & E-Books Marketplace.
 
-## 기술 스택
+## Tech Stack
 
-- **언어**: Go 1.21+
-- **웹 프레임워크**: Gin
-- **데이터베이스**: PostgreSQL with pgvector
-- **ORM**: database/sql (표준 라이브러리)
+- **Language**: Go 1.21+
+- **Web Framework**: Gin
+- **Database**: PostgreSQL with pgvector
+- **ORM**: database/sql (standard library)
 
-## 설치 및 실행
-sudo -u postgres psql -d cmall_dd -c "INSERT INTO cmall_dd (name, price, original_price, image, category, condition, description, size, brand, color, material) VALUES ('클래식 데님 자켓', 890000, 1500000, '/images/sample-product.jpg', 'jackets', 'Excellent', '빈티지 스타일의 클래식 데님 자켓입니다. 내구성이 뛰어나고 다양한 스타일에 매치하기 좋습니다.', 'M', 'Levi''s', 'blue', 'denim') RETURNING id, name, price;"
-### 1. 의존성 설치
+## Installation & Setup
+
+### 1. Install Dependencies
 
 ```bash
-cd server
 go mod download
 ```
 
-### 2. 환경 변수 설정
+### 2. Environment Variables
 
-`.env.example` 파일을 참고하여 `.env` 파일을 생성하세요:
-
-```bash
-cp .env.example .env
-```
-
-`.env` 파일을 편집하여 데이터베이스 연결 정보를 설정하세요:
+Create `.env` file:
 
 ```env
 DB_HOST=localhost
@@ -35,138 +28,144 @@ DB_USER=postgres
 DB_PASSWORD=your_password
 DB_NAME=postgres
 PORT=8080
+JWT_SECRET=your_secret_key
 ```
 
-### 3. 데이터베이스 준비
+### 3. Database Setup
 
-WSL 환경에서 PostgreSQL이 실행 중이어야 합니다. pgvector 확장이 설치되어 있어야 합니다.
+Make sure PostgreSQL is running and pgvector extension is installed.
 
-### 4. 서버 실행
+### 4. Run Server
 
 ```bash
 go run main.go
 ```
 
-또는 빌드 후 실행:
+Or build and run:
 
 ```bash
 go build -o cmall_dd
 ./cmall_dd
 ```
 
-서버는 기본적으로 `http://localhost:8080`에서 실행됩니다.
+Server runs on `http://localhost:8080`.
 
-## API 엔드포인트
+## API Endpoints
 
-### 제품 관련
+### Authentication
+- `POST /api/v1/auth/register` - Register new user
+- `POST /api/v1/auth/login` - Login user
 
-- `GET /api/v1/products` - 모든 제품 조회
-- `GET /api/v1/products/:id` - 특정 제품 조회
-- `POST /api/v1/products` - 새 제품 생성
-- `PUT /api/v1/products/:id` - 제품 수정
-- `DELETE /api/v1/products/:id` - 제품 삭제
+### Products
+- `GET /api/v1/products` - Get all products
+- `GET /api/v1/products/search` - Search products
+- `GET /api/v1/products/:id` - Get single product
+- `POST /api/v1/products` - Create product (auth required)
+- `PUT /api/v1/products/:id` - Update product (auth required)
+- `DELETE /api/v1/products/:id` - Delete product (auth required)
+- `GET /api/v1/my-products` - Get seller's products (auth required)
 
-### 장바구니 관련
+### Cart
+- `GET /api/v1/cart` - Get cart
+- `POST /api/v1/cart` - Add to cart
+- `PUT /api/v1/cart/:id` - Update cart item
+- `DELETE /api/v1/cart/:id` - Remove from cart
+- `POST /api/v1/cart/merge` - Merge session cart to user cart
 
-- `GET /api/v1/cart?sessionId=xxx` - 장바구니 조회
-- `POST /api/v1/cart` - 장바구니에 추가
-- `PUT /api/v1/cart/:id` - 장바구니 항목 수정
-- `DELETE /api/v1/cart/:id` - 장바구니 항목 삭제
+### User
+- `GET /api/v1/user` - Get current user (auth required)
+- `PUT /api/v1/user` - Update user profile (auth required)
 
-## 데이터베이스 스키마
+## Database Schema
 
-### cmall_dd 테이블 (제품)
+### users table
 
-- `id`: SERIAL PRIMARY KEY
-- `name`: VARCHAR(255)
-- `price`: INTEGER
-- `original_price`: INTEGER (nullable)
-- `image`: VARCHAR(500)
-- `category`: VARCHAR(100)
-- `condition`: VARCHAR(50)
-- `description`: TEXT
-- `size`: VARCHAR(50) (nullable)
-- `brand`: VARCHAR(100) (nullable)
-- `color`: VARCHAR(50) (nullable)
-- `material`: VARCHAR(100) (nullable)
-- `created_at`: TIMESTAMP
-- `updated_at`: TIMESTAMP
-- `embedding`: vector(1536) (AI 검색용, 선택사항)
+| Column | Type | Description |
+|--------|------|-------------|
+| id | SERIAL | Primary key |
+| email | VARCHAR(255) | Unique email |
+| password | VARCHAR(255) | Hashed password |
+| name | VARCHAR(255) | Display name |
+| role | VARCHAR(50) | User role |
+| avatar | VARCHAR(500) | Profile image URL |
+| bio | TEXT | User bio |
+| created_at | TIMESTAMP | Creation time |
+| updated_at | TIMESTAMP | Update time |
 
-### cart 테이블 (장바구니)
+### products table
 
-- `id`: SERIAL PRIMARY KEY
-- `product_id`: INTEGER (FK to cmall_dd)
-- `quantity`: INTEGER
-- `session_id`: VARCHAR(255)
-- `created_at`: TIMESTAMP
-- `updated_at`: TIMESTAMP
+| Column | Type | Description |
+|--------|------|-------------|
+| id | SERIAL | Primary key |
+| seller_id | INTEGER | FK to users |
+| name | VARCHAR(255) | Product name |
+| price | INTEGER | Price in cents |
+| original_price | INTEGER | Original price |
+| image | VARCHAR(500) | Image URL |
+| category | VARCHAR(100) | Category |
+| product_type | VARCHAR(50) | 'software' or 'ebook' |
+| version | VARCHAR(50) | Version |
+| download_url | VARCHAR(500) | Download link |
+| file_size | VARCHAR(50) | File size |
+| license_key | VARCHAR(255) | License key |
+| description | TEXT | Description |
+| features | TEXT | Features list |
+| system_requirements | TEXT | System requirements |
+| created_at | TIMESTAMP | Creation time |
+| updated_at | TIMESTAMP | Update time |
 
-## 개발
+### cart table
 
-### 프로젝트 구조
+| Column | Type | Description |
+|--------|------|-------------|
+| id | SERIAL | Primary key |
+| product_id | INTEGER | FK to products |
+| quantity | INTEGER | Item quantity |
+| session_id | VARCHAR(255) | Session ID |
+| user_id | INTEGER | FK to users |
+| created_at | TIMESTAMP | Creation time |
+| updated_at | TIMESTAMP | Update time |
+
+## Project Structure
 
 ```
 server/
-├── main.go                 # 진입점
-├── go.mod                  # Go 모듈 정의
-├── .env                    # 환경 변수 (gitignore)
+├── main.go                 # Entry point
+├── go.mod                  # Go module
+├── .env                    # Environment variables
 ├── internal/
-│   ├── database/          # 데이터베이스 연결 및 스키마
-│   ├── handlers/          # API 핸들러
-│   └── models/            # 데이터 모델
+│   ├── database/          # DB connection & schema
+│   ├── handlers/          # API handlers
+│   ├── models/            # Data models
+│   └── utils/             # Utilities
+├── scripts/               # Helper scripts
 └── README.md
 ```
 
-## 데이터베이스 백업 및 복원
+## Database Backup & Restore
 
-### 백업
+### Backup
 
-데이터베이스를 G 드라이브로 백업합니다:
-
-**WSL에서 실행:**
+**WSL:**
 ```bash
 bash scripts/backup_database.sh
 ```
 
-**PowerShell에서 실행:**
+**PowerShell:**
 ```powershell
 .\scripts\backup_database.ps1
 ```
 
-**Makefile 사용:**
+### Restore
+
+**WSL:**
 ```bash
-make backup
+bash scripts/restore_database.sh [backup_path]
 ```
 
-백업 파일은 `G:\cmall_dd_backups\` 디렉토리에 저장되며, 파일명에 타임스탬프가 포함됩니다.
-
-### 복원
-
-백업 파일에서 데이터베이스를 복원합니다:
-
-**WSL에서 실행:**
-```bash
-bash scripts/restore_database.sh [백업파일경로]
-```
-
-**PowerShell에서 실행:**
+**PowerShell:**
 ```powershell
-.\scripts\restore_database.ps1 -BackupFile "G:\cmall_dd_backups\cmall_dd_backup_20240203_120000.dump"
+.\scripts\restore_database.ps1 -BackupFile "path/to/backup.dump"
 ```
 
-**Makefile 사용:**
-```bash
-make restore
-```
-
-백업 파일 경로를 지정하지 않으면 가장 최근 백업 파일을 사용합니다.
-
-⚠️ **주의**: 복원 시 기존 데이터베이스가 덮어씌워집니다.
-
-## 참고사항
-
-- pgvector 확장은 AI 기반 검색 기능을 위해 사용할 수 있습니다.
-- 현재는 기본적인 CRUD 기능만 구현되어 있습니다.
-- 향후 AI 기능 추가 시 embedding 필드를 활용할 수 있습니다.
-
+⚠️ **Warning**: Restore will overwrite existing data.

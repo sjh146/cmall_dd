@@ -1,14 +1,19 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Header } from './components/Header';
 import { HeroSection } from './components/HeroSection';
 import { ProductCard, Product } from './components/ProductCard';
 import { ShoppingCart, CartItem } from './components/ShoppingCart';
 import { ProductFilters, FilterOptions } from './components/ProductFilters';
 import { MobileFilters } from './components/MobileFilters';
+import AuthPage from './pages/AuthPage';
+import SellerDashboard from './pages/SellerDashboard';
+import MyProducts from './pages/MyProducts';
 import { Button } from './components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './components/ui/select';
 import { Grid, List } from 'lucide-react';
 import { fetchProducts, addToCart as addToCartAPI, fetchCart, updateCartItem as updateCartItemAPI, removeFromCart as removeFromCartAPI, type Product as APIProduct, type CartItem as APICartItem } from './lib/api';
+import { useAuth } from './contexts/AuthContext';
 
 // Convert API Product to Component Product
 function convertAPIProductToProduct(apiProduct: APIProduct): Product {
@@ -19,12 +24,12 @@ function convertAPIProductToProduct(apiProduct: APIProduct): Product {
     originalPrice: apiProduct.originalPrice,
     image: apiProduct.image,
     category: apiProduct.category,
-    condition: apiProduct.condition as 'Excellent' | 'Good' | 'Fair',
+    condition: apiProduct.productType as 'Excellent' | 'Good' | 'Fair',
     description: apiProduct.description,
-    size: apiProduct.size,
-    brand: apiProduct.brand,
-    color: apiProduct.color,
-    material: apiProduct.material,
+    size: apiProduct.version,
+    brand: '',
+    color: '',
+    material: '',
   };
 }
 
@@ -42,7 +47,8 @@ function convertAPICartItemToCartItem(apiCartItem: APICartItem): CartItem {
 
 type SortOption = 'price-low' | 'price-high' | 'newest' | 'popular';
 
-export default function App() {
+function HomePage() {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -56,7 +62,7 @@ export default function App() {
   const [filters, setFilters] = useState<FilterOptions>({
     categories: [],
     conditions: [],
-    priceRange: [0, 1500000],
+    priceRange: [0, 1000000],
     brands: [],
     sizes: [],
     colors: []
@@ -72,7 +78,6 @@ export default function App() {
         const convertedProducts = apiProducts.map(convertAPIProductToProduct);
         setProducts(convertedProducts);
         
-        // Update price range filter based on actual products
         if (convertedProducts.length > 0) {
           const maxPrice = Math.max(...convertedProducts.map(p => p.price));
           setFilters(prev => ({
@@ -82,7 +87,7 @@ export default function App() {
         }
       } catch (err) {
         console.error('Failed to load products:', err);
-        setError('제품을 불러오는데 실패했습니다. 잠시 후 다시 시도해주세요.');
+        setError('Failed to load products. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -100,7 +105,6 @@ export default function App() {
         setCartItems(convertedCartItems);
       } catch (err) {
         console.error('Failed to load cart:', err);
-        // Cart will be empty if API fails
       }
     };
 
@@ -109,10 +113,7 @@ export default function App() {
 
   // Get unique values for filters
   const availableCategories: string[] = Array.from(new Set(products.map(p => p.category)));
-  const availableBrands: string[] = Array.from(new Set(products.map(p => p.brand).filter((b): b is string => Boolean(b))));
-  const availableSizes: string[] = Array.from(new Set(products.map(p => p.size).filter((s): s is string => Boolean(s))));
-  const availableColors: string[] = Array.from(new Set(products.map(p => p.color).filter((c): c is string => Boolean(c))));
-  const maxPrice = products.length > 0 ? Math.max(...products.map(p => p.price)) : 1500000;
+  const maxPrice = products.length > 0 ? Math.max(...products.map(p => p.price)) : 1000000;
 
   // Calculate active filters count
   const activeFiltersCount = filters.categories.length + 
@@ -127,8 +128,7 @@ export default function App() {
     let filtered = products.filter(product => {
       // Search filter
       if (searchQuery && !product.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-          !product.description.toLowerCase().includes(searchQuery.toLowerCase()) &&
-          !product.brand?.toLowerCase().includes(searchQuery.toLowerCase())) {
+          !product.description.toLowerCase().includes(searchQuery.toLowerCase())) {
         return false;
       }
 
@@ -141,28 +141,8 @@ export default function App() {
         return false;
       }
 
-      // Condition filter
-      if (filters.conditions.length > 0 && !filters.conditions.includes(product.condition)) {
-        return false;
-      }
-
       // Price filter
       if (product.price < filters.priceRange[0] || product.price > filters.priceRange[1]) {
-        return false;
-      }
-
-      // Brand filter
-      if (filters.brands.length > 0 && !filters.brands.includes(product.brand || '')) {
-        return false;
-      }
-
-      // Size filter
-      if (filters.sizes.length > 0 && !filters.sizes.includes(product.size || '')) {
-        return false;
-      }
-
-      // Color filter
-      if (filters.colors.length > 0 && !filters.colors.includes(product.color || '')) {
         return false;
       }
 
@@ -178,10 +158,8 @@ export default function App() {
         filtered.sort((a, b) => b.price - a.price);
         break;
       case 'newest':
-        // Keep original order for "newest"
         break;
       case 'popular':
-        // Random order for "popular"
         filtered.sort(() => Math.random() - 0.5);
         break;
     }
@@ -236,7 +214,6 @@ export default function App() {
         await removeFromCartAPI(apiCartItem.id);
       }
       
-      // Reload cart from API
       const updatedCartItems = await fetchCart();
       const convertedCartItems = updatedCartItems.map(convertAPICartItemToCartItem);
       setCartItems(convertedCartItems);
@@ -260,7 +237,7 @@ export default function App() {
   const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
       <Header
         cartItemCount={cartItemCount}
         onCartClick={() => setIsCartOpen(true)}
@@ -283,9 +260,9 @@ export default function App() {
               filters={filters}
               onFiltersChange={setFilters}
               availableCategories={availableCategories}
-              availableBrands={availableBrands}
-              availableSizes={availableSizes}
-              availableColors={availableColors}
+              availableBrands={[]}
+              availableSizes={[]}
+              availableColors={[]}
               maxPrice={maxPrice}
             />
           </aside>
@@ -298,9 +275,9 @@ export default function App() {
                 filters={filters}
                 onFiltersChange={setFilters}
                 availableCategories={availableCategories}
-                availableBrands={availableBrands}
-                availableSizes={availableSizes}
-                availableColors={availableColors}
+                availableBrands={[]}
+                availableSizes={[]}
+                availableColors={[]}
                 maxPrice={maxPrice}
                 activeFiltersCount={activeFiltersCount}
               />
@@ -309,10 +286,10 @@ export default function App() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="newest">신상품순</SelectItem>
-                  <SelectItem value="popular">인기순</SelectItem>
-                  <SelectItem value="price-low">낮은가격순</SelectItem>
-                  <SelectItem value="price-high">높은가격순</SelectItem>
+                  <SelectItem value="newest">Newest</SelectItem>
+                  <SelectItem value="popular">Popular</SelectItem>
+                  <SelectItem value="price-low">Price: Low to High</SelectItem>
+                  <SelectItem value="price-high">Price: High to Low</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -321,10 +298,10 @@ export default function App() {
             <div className="hidden lg:flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
               <div>
                 <h2 className="text-lg font-semibold text-foreground mb-1">
-                  {searchQuery ? `"${searchQuery}" 검색 결과` : '전체 상품'}
+                  {searchQuery ? `Search results for "${searchQuery}"` : 'All Products'}
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  총 {filteredAndSortedProducts.length}개
+                  {filteredAndSortedProducts.length} products
                 </p>
               </div>
               
@@ -334,10 +311,10 @@ export default function App() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="newest">신상품순</SelectItem>
-                    <SelectItem value="popular">인기순</SelectItem>
-                    <SelectItem value="price-low">낮은가격순</SelectItem>
-                    <SelectItem value="price-high">높은가격순</SelectItem>
+                    <SelectItem value="newest">Newest</SelectItem>
+                    <SelectItem value="popular">Popular</SelectItem>
+                    <SelectItem value="price-low">Price: Low to High</SelectItem>
+                    <SelectItem value="price-high">Price: High to Low</SelectItem>
                   </SelectContent>
                 </Select>
                 
@@ -365,14 +342,14 @@ export default function App() {
             {/* Results count for mobile */}
             <div className="mb-6 lg:hidden">
               <p className="text-sm text-gray-500">
-                총 {filteredAndSortedProducts.length}개
+                {filteredAndSortedProducts.length} products
               </p>
             </div>
 
             {/* Loading State */}
             {loading && (
               <div className="text-center py-20">
-                <p className="text-gray-500 text-base">제품을 불러오는 중...</p>
+                <p className="text-gray-500 text-base">Loading products...</p>
               </div>
             )}
 
@@ -390,14 +367,14 @@ export default function App() {
                       const convertedProducts = apiProducts.map(convertAPIProductToProduct);
                       setProducts(convertedProducts);
                     } catch (err) {
-                      setError('제품을 불러오는데 실패했습니다.');
+                      setError('Failed to load products.');
                     } finally {
                       setLoading(false);
                     }
                   }}
                   className="bg-secondary border-border"
                 >
-                  다시 시도
+                  Try Again
                 </Button>
               </div>
             )}
@@ -405,7 +382,7 @@ export default function App() {
             {/* Product Grid */}
             {!loading && !error && filteredAndSortedProducts.length === 0 ? (
               <div className="text-center py-20">
-                <p className="text-muted-foreground text-base mb-4">검색 결과가 없습니다.</p>
+                <p className="text-muted-foreground text-base mb-4">No products found.</p>
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -421,7 +398,7 @@ export default function App() {
                   }}
                   className="bg-secondary border-border"
                 >
-                  필터 초기화
+                  Clear Filters
                 </Button>
               </div>
             ) : !loading && !error ? (
@@ -454,6 +431,19 @@ export default function App() {
         onUpdateQuantity={updateCartQuantity}
         onRemoveItem={removeFromCart}
       />
-    </div>
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/auth" element={<AuthPage />} />
+        <Route path="/seller" element={<SellerDashboard />} />
+        <Route path="/my-products" element={<MyProducts />} />
+      </Routes>
+    </BrowserRouter>
   );
 }

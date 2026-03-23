@@ -4,18 +4,20 @@ import (
 	"database/sql"
 	"net/http"
 	"strconv"
+	"strings"
 
-	"github.com/gin-gonic/gin"
 	"cmall_dd/internal/models"
-	"cmall_dd/internal/utils"
+	"github.com/gin-gonic/gin"
 )
 
+// GetProducts returns all products
 func GetProducts(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		query := `
-			SELECT id, name, price, original_price, image, category, condition, 
-			       description, size, brand, color, material, created_at, updated_at
-			FROM cmall_dd
+			SELECT id, seller_id, name, price, original_price, image, category, product_type,
+			       version, download_url, file_size, license_key, description, features,
+			       system_requirements, created_at, updated_at
+			FROM products
 			ORDER BY created_at DESC
 		`
 
@@ -30,9 +32,10 @@ func GetProducts(db *sql.DB) gin.HandlerFunc {
 		for rows.Next() {
 			var p models.Product
 			err := rows.Scan(
-				&p.ID, &p.Name, &p.Price, &p.OriginalPrice, &p.Image, &p.Category,
-				&p.Condition, &p.Description, &p.Size, &p.Brand, &p.Color,
-				&p.Material, &p.CreatedAt, &p.UpdatedAt,
+				&p.ID, &p.SellerID, &p.Name, &p.Price, &p.OriginalPrice, &p.Image,
+				&p.Category, &p.ProductType, &p.Version, &p.DownloadURL, &p.FileSize,
+				&p.LicenseKey, &p.Description, &p.Features, &p.SystemReq,
+				&p.CreatedAt, &p.UpdatedAt,
 			)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -45,6 +48,7 @@ func GetProducts(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
+// GetProduct returns a single product
 func GetProduct(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.Atoi(c.Param("id"))
@@ -54,17 +58,19 @@ func GetProduct(db *sql.DB) gin.HandlerFunc {
 		}
 
 		query := `
-			SELECT id, name, price, original_price, image, category, condition, 
-			       description, size, brand, color, material, created_at, updated_at
-			FROM cmall_dd
+			SELECT id, seller_id, name, price, original_price, image, category, product_type,
+			       version, download_url, file_size, license_key, description, features,
+			       system_requirements, created_at, updated_at
+			FROM products
 			WHERE id = $1
 		`
 
 		var p models.Product
 		err = db.QueryRow(query, id).Scan(
-			&p.ID, &p.Name, &p.Price, &p.OriginalPrice, &p.Image, &p.Category,
-			&p.Condition, &p.Description, &p.Size, &p.Brand, &p.Color,
-			&p.Material, &p.CreatedAt, &p.UpdatedAt,
+			&p.ID, &p.SellerID, &p.Name, &p.Price, &p.OriginalPrice, &p.Image,
+			&p.Category, &p.ProductType, &p.Version, &p.DownloadURL, &p.FileSize,
+			&p.LicenseKey, &p.Description, &p.Features, &p.SystemReq,
+			&p.CreatedAt, &p.UpdatedAt,
 		)
 
 		if err == sql.ErrNoRows {
@@ -80,43 +86,47 @@ func GetProduct(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
+// CreateProduct creates a new product (seller only)
 func CreateProduct(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		sellerID, exists := c.Get("userId")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+
 		var req models.CreateProductRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		// Generate embedding from product information
-		embeddingText := utils.BuildEmbeddingText(
-			req.Name,
-			req.Category,
-			req.Description,
-			req.Brand,
-			req.Color,
-			req.Material,
-		)
-		embedding := utils.GenerateEmbedding(embeddingText)
-		embeddingStr := utils.EmbeddingToString(embedding)
+		// Validate product type
+		if req.ProductType != "software" && req.ProductType != "ebook" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Product type must be 'software' or 'ebook'"})
+			return
+		}
 
 		query := `
-			INSERT INTO cmall_dd (name, price, original_price, image, category, condition, 
-			                      description, size, brand, color, material, embedding)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::vector)
-			RETURNING id, name, price, original_price, image, category, condition, 
-			          description, size, brand, color, material, created_at, updated_at
+			INSERT INTO products (seller_id, name, price, original_price, image, category,
+			                      product_type, version, download_url, file_size, license_key,
+			                      description, features, system_requirements)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+			RETURNING id, seller_id, name, price, original_price, image, category, product_type,
+			          version, download_url, file_size, license_key, description, features,
+			          system_requirements, created_at, updated_at
 		`
 
 		var p models.Product
 		err := db.QueryRow(query,
-			req.Name, req.Price, req.OriginalPrice, req.Image, req.Category,
-			req.Condition, req.Description, req.Size, req.Brand, req.Color, req.Material,
-			embeddingStr,
+			sellerID, req.Name, req.Price, req.OriginalPrice, req.Image, req.Category,
+			req.ProductType, req.Version, req.DownloadURL, req.FileSize, req.LicenseKey,
+			req.Description, req.Features, req.SystemReq,
 		).Scan(
-			&p.ID, &p.Name, &p.Price, &p.OriginalPrice, &p.Image, &p.Category,
-			&p.Condition, &p.Description, &p.Size, &p.Brand, &p.Color,
-			&p.Material, &p.CreatedAt, &p.UpdatedAt,
+			&p.ID, &p.SellerID, &p.Name, &p.Price, &p.OriginalPrice, &p.Image,
+			&p.Category, &p.ProductType, &p.Version, &p.DownloadURL, &p.FileSize,
+			&p.LicenseKey, &p.Description, &p.Features, &p.SystemReq,
+			&p.CreatedAt, &p.UpdatedAt,
 		)
 
 		if err != nil {
@@ -128,8 +138,15 @@ func CreateProduct(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
+// UpdateProduct updates a product (seller only, own products)
 func UpdateProduct(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		sellerID, exists := c.Get("userId")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+
 		id, err := strconv.Atoi(c.Param("id"))
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
@@ -143,7 +160,7 @@ func UpdateProduct(db *sql.DB) gin.HandlerFunc {
 		}
 
 		// Build dynamic update query
-		query := "UPDATE cmall_dd SET updated_at = CURRENT_TIMESTAMP"
+		query := "UPDATE products SET updated_at = CURRENT_TIMESTAMP"
 		args := []interface{}{}
 		argIndex := 1
 
@@ -172,9 +189,33 @@ func UpdateProduct(db *sql.DB) gin.HandlerFunc {
 			args = append(args, *req.Category)
 			argIndex++
 		}
-		if req.Condition != nil {
-			query += ", condition = $" + strconv.Itoa(argIndex)
-			args = append(args, *req.Condition)
+		if req.ProductType != nil {
+			if *req.ProductType != "software" && *req.ProductType != "ebook" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Product type must be 'software' or 'ebook'"})
+				return
+			}
+			query += ", product_type = $" + strconv.Itoa(argIndex)
+			args = append(args, *req.ProductType)
+			argIndex++
+		}
+		if req.Version != nil {
+			query += ", version = $" + strconv.Itoa(argIndex)
+			args = append(args, *req.Version)
+			argIndex++
+		}
+		if req.DownloadURL != nil {
+			query += ", download_url = $" + strconv.Itoa(argIndex)
+			args = append(args, *req.DownloadURL)
+			argIndex++
+		}
+		if req.FileSize != nil {
+			query += ", file_size = $" + strconv.Itoa(argIndex)
+			args = append(args, *req.FileSize)
+			argIndex++
+		}
+		if req.LicenseKey != nil {
+			query += ", license_key = $" + strconv.Itoa(argIndex)
+			args = append(args, *req.LicenseKey)
 			argIndex++
 		}
 		if req.Description != nil {
@@ -182,39 +223,30 @@ func UpdateProduct(db *sql.DB) gin.HandlerFunc {
 			args = append(args, *req.Description)
 			argIndex++
 		}
-		if req.Size != nil {
-			query += ", size = $" + strconv.Itoa(argIndex)
-			args = append(args, *req.Size)
+		if req.Features != nil {
+			query += ", features = $" + strconv.Itoa(argIndex)
+			args = append(args, *req.Features)
 			argIndex++
 		}
-		if req.Brand != nil {
-			query += ", brand = $" + strconv.Itoa(argIndex)
-			args = append(args, *req.Brand)
-			argIndex++
-		}
-		if req.Color != nil {
-			query += ", color = $" + strconv.Itoa(argIndex)
-			args = append(args, *req.Color)
-			argIndex++
-		}
-		if req.Material != nil {
-			query += ", material = $" + strconv.Itoa(argIndex)
-			args = append(args, *req.Material)
+		if req.SystemReq != nil {
+			query += ", system_requirements = $" + strconv.Itoa(argIndex)
+			args = append(args, *req.SystemReq)
 			argIndex++
 		}
 
-		query += " WHERE id = $" + strconv.Itoa(argIndex) + " RETURNING id, name, price, original_price, image, category, condition, description, size, brand, color, material, created_at, updated_at"
-		args = append(args, id)
+		query += " WHERE id = $" + strconv.Itoa(argIndex) + " AND seller_id = $" + strconv.Itoa(argIndex+1)
+		args = append(args, id, sellerID)
 
 		var p models.Product
 		err = db.QueryRow(query, args...).Scan(
-			&p.ID, &p.Name, &p.Price, &p.OriginalPrice, &p.Image, &p.Category,
-			&p.Condition, &p.Description, &p.Size, &p.Brand, &p.Color,
-			&p.Material, &p.CreatedAt, &p.UpdatedAt,
+			&p.ID, &p.SellerID, &p.Name, &p.Price, &p.OriginalPrice, &p.Image,
+			&p.Category, &p.ProductType, &p.Version, &p.DownloadURL, &p.FileSize,
+			&p.LicenseKey, &p.Description, &p.Features, &p.SystemReq,
+			&p.CreatedAt, &p.UpdatedAt,
 		)
 
 		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "Product not found or not authorized"})
 			return
 		}
 		if err != nil {
@@ -226,15 +258,22 @@ func UpdateProduct(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
+// DeleteProduct deletes a product (seller only, own products)
 func DeleteProduct(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		sellerID, exists := c.Get("userId")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+
 		id, err := strconv.Atoi(c.Param("id"))
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
 			return
 		}
 
-		result, err := db.Exec("DELETE FROM cmall_dd WHERE id = $1", id)
+		result, err := db.Exec("DELETE FROM products WHERE id = $1 AND seller_id = $2", id, sellerID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -242,7 +281,7 @@ func DeleteProduct(db *sql.DB) gin.HandlerFunc {
 
 		rowsAffected, _ := result.RowsAffected()
 		if rowsAffected == 0 {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "Product not found or not authorized"})
 			return
 		}
 
@@ -250,3 +289,109 @@ func DeleteProduct(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
+// GetMyProducts returns products owned by the authenticated seller
+func GetMyProducts(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sellerID, exists := c.Get("userId")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+
+		query := `
+			SELECT id, seller_id, name, price, original_price, image, category, product_type,
+			       version, download_url, file_size, license_key, description, features,
+			       system_requirements, created_at, updated_at
+			FROM products
+			WHERE seller_id = $1
+			ORDER BY created_at DESC
+		`
+
+		rows, err := db.Query(query, sellerID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		defer rows.Close()
+
+		var products []models.Product
+		for rows.Next() {
+			var p models.Product
+			err := rows.Scan(
+				&p.ID, &p.SellerID, &p.Name, &p.Price, &p.OriginalPrice, &p.Image,
+				&p.Category, &p.ProductType, &p.Version, &p.DownloadURL, &p.FileSize,
+				&p.LicenseKey, &p.Description, &p.Features, &p.SystemReq,
+				&p.CreatedAt, &p.UpdatedAt,
+			)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			products = append(products, p)
+		}
+
+		c.JSON(http.StatusOK, products)
+	}
+}
+
+// SearchProducts searches products by name or description
+func SearchProducts(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		search := c.Query("q")
+		productType := c.Query("type")
+		category := c.Query("category")
+
+		query := `
+			SELECT id, seller_id, name, price, original_price, image, category, product_type,
+			       version, download_url, file_size, license_key, description, features,
+			       system_requirements, created_at, updated_at
+			FROM products
+			WHERE 1=1
+		`
+		args := []interface{}{}
+		argIndex := 1
+
+		if search != "" {
+			query += " AND (LOWER(name) LIKE $" + strconv.Itoa(argIndex) + " OR LOWER(description) LIKE $" + strconv.Itoa(argIndex) + ")"
+			args = append(args, "%"+strings.ToLower(search)+"%")
+			argIndex++
+		}
+		if productType != "" {
+			query += " AND product_type = $" + strconv.Itoa(argIndex)
+			args = append(args, productType)
+			argIndex++
+		}
+		if category != "" {
+			query += " AND category = $" + strconv.Itoa(argIndex)
+			args = append(args, category)
+			argIndex++
+		}
+
+		query += " ORDER BY created_at DESC"
+
+		rows, err := db.Query(query, args...)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		defer rows.Close()
+
+		var products []models.Product
+		for rows.Next() {
+			var p models.Product
+			err := rows.Scan(
+				&p.ID, &p.SellerID, &p.Name, &p.Price, &p.OriginalPrice, &p.Image,
+				&p.Category, &p.ProductType, &p.Version, &p.DownloadURL, &p.FileSize,
+				&p.LicenseKey, &p.Description, &p.Features, &p.SystemReq,
+				&p.CreatedAt, &p.UpdatedAt,
+			)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			products = append(products, p)
+		}
+
+		c.JSON(http.StatusOK, products)
+	}
+}

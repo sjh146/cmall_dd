@@ -5,29 +5,49 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/gin-gonic/gin"
 	"cmall_dd/internal/models"
+	"github.com/gin-gonic/gin"
 )
 
 func GetCart(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sessionID := c.Query("sessionId")
-		if sessionID == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "sessionId is required"})
+		userID, hasUserID := c.Get("userId")
+
+		var query string
+		var args []interface{}
+
+		if hasUserID {
+			// Use user_id if authenticated
+			query = `
+				SELECT c.id, c.product_id, c.quantity, COALESCE(c.session_id, ''), c.user_id, c.created_at, c.updated_at,
+				       p.id, p.seller_id, p.name, p.price, p.original_price, p.image, p.category, p.product_type,
+				       p.version, p.download_url, p.file_size, p.license_key, p.description, p.features,
+				       p.system_requirements, p.created_at, p.updated_at
+				FROM cart c
+				JOIN products p ON c.product_id = p.id
+				WHERE c.user_id = $1
+				ORDER BY c.created_at DESC
+			`
+			args = []interface{}{userID}
+		} else if sessionID != "" {
+			query = `
+				SELECT c.id, c.product_id, c.quantity, COALESCE(c.session_id, ''), COALESCE(c.user_id, 0), c.created_at, c.updated_at,
+				       p.id, p.seller_id, p.name, p.price, p.original_price, p.image, p.category, p.product_type,
+				       p.version, p.download_url, p.file_size, p.license_key, p.description, p.features,
+				       p.system_requirements, p.created_at, p.updated_at
+				FROM cart c
+				JOIN products p ON c.product_id = p.id
+				WHERE c.session_id = $1 AND c.user_id IS NULL
+				ORDER BY c.created_at DESC
+			`
+			args = []interface{}{sessionID}
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "sessionId is required or authentication needed"})
 			return
 		}
 
-		query := `
-			SELECT c.id, c.product_id, c.quantity, c.session_id, c.created_at, c.updated_at,
-			       p.id, p.name, p.price, p.original_price, p.image, p.category, p.condition,
-			       p.description, p.size, p.brand, p.color, p.material, p.created_at, p.updated_at
-			FROM cart c
-			JOIN cmall_dd p ON c.product_id = p.id
-			WHERE c.session_id = $1
-			ORDER BY c.created_at DESC
-		`
-
-		rows, err := db.Query(query, sessionID)
+		rows, err := db.Query(query, args...)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -38,17 +58,26 @@ func GetCart(db *sql.DB) gin.HandlerFunc {
 		for rows.Next() {
 			var item models.CartItem
 			var product models.Product
+			var sessionIDVal string
+			var userIDVal sql.NullInt64
+
 			err := rows.Scan(
-				&item.ID, &item.ProductID, &item.Quantity, &item.SessionID,
+				&item.ID, &item.ProductID, &item.Quantity, &sessionIDVal, &userIDVal,
 				&item.CreatedAt, &item.UpdatedAt,
-				&product.ID, &product.Name, &product.Price, &product.OriginalPrice,
-				&product.Image, &product.Category, &product.Condition, &product.Description,
-				&product.Size, &product.Brand, &product.Color, &product.Material,
-				&product.CreatedAt, &product.UpdatedAt,
+				&product.ID, &product.SellerID, &product.Name, &product.Price, &product.OriginalPrice,
+				&product.Image, &product.Category, &product.ProductType, &product.Version,
+				&product.DownloadURL, &product.FileSize, &product.LicenseKey, &product.Description,
+				&product.Features, &product.SystemReq, &product.CreatedAt, &product.UpdatedAt,
 			)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
+			}
+
+			item.SessionID = sessionIDVal
+			if userIDVal.Valid {
+				uid := int(userIDVal.Int64)
+				item.UserID = &uid
 			}
 			item.Product = &product
 			cartItems = append(cartItems, item)
@@ -70,25 +99,35 @@ func AddToCart(db *sql.DB) gin.HandlerFunc {
 			req.Quantity = 1
 		}
 
+		userID, hasUserID := c.Get("userId")
+
 		// Check if item already exists in cart
 		var existingID int
-		err := db.QueryRow(
-			"SELECT id FROM cart WHERE product_id = $1 AND session_id = $2",
-			req.ProductID, req.SessionID,
-		).Scan(&existingID)
+		var query string
+		var args []interface{}
+
+		if hasUserID {
+			query = "SELECT id FROM cart WHERE product_id = $1 AND user_id = $2"
+			args = []interface{}{req.ProductID, userID}
+		} else {
+			query = "SELECT id FROM cart WHERE product_id = $1 AND session_id = $2 AND user_id IS NULL"
+			args = []interface{}{req.ProductID, req.SessionID}
+		}
+
+		err := db.QueryRow(query, args...).Scan(&existingID)
 
 		if err == nil {
 			// Update existing item
-			query := `
+			updateQuery := `
 				UPDATE cart 
 				SET quantity = quantity + $1, updated_at = CURRENT_TIMESTAMP
 				WHERE id = $2
-				RETURNING id, product_id, quantity, session_id, created_at, updated_at
+				RETURNING id, product_id, quantity, session_id, user_id, created_at, updated_at
 			`
 			var item models.CartItem
-			err = db.QueryRow(query, req.Quantity, existingID).Scan(
+			err = db.QueryRow(updateQuery, req.Quantity, existingID).Scan(
 				&item.ID, &item.ProductID, &item.Quantity, &item.SessionID,
-				&item.CreatedAt, &item.UpdatedAt,
+				&item.UserID, &item.CreatedAt, &item.UpdatedAt,
 			)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -99,16 +138,22 @@ func AddToCart(db *sql.DB) gin.HandlerFunc {
 		}
 
 		// Insert new item
-		query := `
-			INSERT INTO cart (product_id, quantity, session_id)
-			VALUES ($1, $2, $3)
-			RETURNING id, product_id, quantity, session_id, created_at, updated_at
+		insertQuery := `
+			INSERT INTO cart (product_id, quantity, session_id, user_id)
+			VALUES ($1, $2, $3, $4)
+			RETURNING id, product_id, quantity, session_id, user_id, created_at, updated_at
 		`
 
 		var item models.CartItem
-		err = db.QueryRow(query, req.ProductID, req.Quantity, req.SessionID).Scan(
+		var userIDPtr *int
+		if hasUserID {
+			uid := userID.(int)
+			userIDPtr = &uid
+		}
+
+		err = db.QueryRow(insertQuery, req.ProductID, req.Quantity, req.SessionID, userIDPtr).Scan(
 			&item.ID, &item.ProductID, &item.Quantity, &item.SessionID,
-			&item.CreatedAt, &item.UpdatedAt,
+			&item.UserID, &item.CreatedAt, &item.UpdatedAt,
 		)
 
 		if err != nil {
@@ -137,7 +182,6 @@ func UpdateCartItem(db *sql.DB) gin.HandlerFunc {
 		}
 
 		if req.Quantity <= 0 {
-			// Delete item if quantity is 0 or less
 			_, err := db.Exec("DELETE FROM cart WHERE id = $1", id)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -151,13 +195,13 @@ func UpdateCartItem(db *sql.DB) gin.HandlerFunc {
 			UPDATE cart 
 			SET quantity = $1, updated_at = CURRENT_TIMESTAMP
 			WHERE id = $2
-			RETURNING id, product_id, quantity, session_id, created_at, updated_at
+			RETURNING id, product_id, quantity, session_id, user_id, created_at, updated_at
 		`
 
 		var item models.CartItem
 		err = db.QueryRow(query, req.Quantity, id).Scan(
 			&item.ID, &item.ProductID, &item.Quantity, &item.SessionID,
-			&item.CreatedAt, &item.UpdatedAt,
+			&item.UserID, &item.CreatedAt, &item.UpdatedAt,
 		)
 
 		if err == sql.ErrNoRows {
@@ -197,3 +241,42 @@ func RemoveFromCart(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
+// MergeCart merges session cart to user cart upon login
+func MergeCart(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, exists := c.Get("userId")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+
+		sessionID := c.Query("sessionId")
+		if sessionID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "sessionId is required"})
+			return
+		}
+
+		// Move all session cart items to user cart
+		query := `
+			INSERT INTO cart (product_id, quantity, user_id)
+			SELECT product_id, quantity, $1
+			FROM cart
+			WHERE session_id = $2 AND user_id IS NULL
+			ON CONFLICT DO NOTHING
+		`
+		_, err := db.Exec(query, userID, sessionID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Delete old session cart items
+		_, err = db.Exec("DELETE FROM cart WHERE session_id = $1 AND user_id IS NULL", sessionID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Cart merged successfully"})
+	}
+}

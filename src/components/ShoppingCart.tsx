@@ -25,16 +25,9 @@ export function ShoppingCart({
   onRemoveItem 
 }: ShoppingCartProps) {
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const tax = subtotal * 0.11; // PPN 11% in Indonesia
-  const total = subtotal + tax;
 
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('id-ID', { 
-      style: 'currency', 
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(price);
+    return `$${(price / 100).toFixed(2)}`;
   };
 
   return (
@@ -43,7 +36,7 @@ export function ShoppingCart({
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <ShoppingBag className="h-5 w-5" />
-            Keranjang Belanja ({cartItems.reduce((sum, item) => sum + item.quantity, 0)})
+            Shopping Cart ({cartItems.reduce((sum, item) => sum + item.quantity, 0)})
           </SheetTitle>
         </SheetHeader>
         
@@ -52,9 +45,9 @@ export function ShoppingCart({
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
                 <ShoppingBag className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Keranjang Anda kosong</p>
+                <p className="text-muted-foreground">Your cart is empty</p>
                 <Button onClick={onClose} className="mt-4">
-                  Lanjutkan Berbelanja
+                  Continue Shopping
                 </Button>
               </div>
             </div>
@@ -64,13 +57,19 @@ export function ShoppingCart({
                 <div className="space-y-4">
                   {cartItems.map((item) => (
                     <div key={item.id} className="flex gap-4 p-4 border border-border rounded-lg bg-card">
-                      <ImageWithFallback
-                        src={item.image}
-                        alt={item.name}
-                        className="w-16 h-16 object-cover rounded"
-                      />
+                      <div className="w-16 h-16 bg-secondary rounded flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {item.image ? (
+                          <ImageWithFallback
+                            src={item.image}
+                            alt={item.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-2xl">📦</span>
+                        )}
+                      </div>
                       <div className="flex-1">
-                        <h4 className="font-medium text-sm mb-1 text-foreground">{item.name}</h4>
+                        <h4 className="font-medium text-sm mb-1 text-foreground line-clamp-2">{item.name}</h4>
                         <p className="text-sm text-muted-foreground mb-2">{formatPrice(item.price)}</p>
                         <div className="flex items-center gap-2">
                           <Button
@@ -116,14 +115,10 @@ export function ShoppingCart({
                     <span>Subtotal</span>
                     <span>{formatPrice(subtotal)}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span>PPN (11%)</span>
-                    <span>{formatPrice(tax)}</span>
-                  </div>
                   <Separator />
-                  <div className="flex justify-between font-medium">
+                  <div className="flex justify-between font-medium text-lg">
                     <span>Total</span>
-                    <span>{formatPrice(total)}</span>
+                    <span>{formatPrice(subtotal)}</span>
                   </div>
                 </div>
                 <Button className="w-full" size="lg">
