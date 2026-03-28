@@ -69,14 +69,20 @@ func Register(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// Insert user
+		// Insert user - check if email is admin email from env
 		var user models.User
+		role := "seller"
+		adminEmail := os.Getenv("ADMIN_EMAIL")
+		if adminEmail != "" && req.Email == adminEmail {
+			role = "admin"
+		}
+
 		query := `
 			INSERT INTO users (email, password, name, role)
-			VALUES ($1, $2, $3, 'seller')
+			VALUES ($1, $2, $3, $4)
 			RETURNING id, email, name, role, avatar, bio, created_at, updated_at
 		`
-		err = db.QueryRow(query, req.Email, string(hashedPassword), req.Name).Scan(
+		err = db.QueryRow(query, req.Email, string(hashedPassword), req.Name, role).Scan(
 			&user.ID, &user.Email, &user.Name, &user.Role,
 			&user.Avatar, &user.Bio, &user.CreatedAt, &user.UpdatedAt,
 		)
@@ -227,5 +233,27 @@ func UpdateUser(db *sql.DB) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, user)
+	}
+}
+
+// SetUserAsAdmin sets the current user's role to admin (for testing)
+func SetUserAsAdmin(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, exists := c.Get("userId")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+
+		// Get user email from context
+		userEmail, _ := c.Get("userEmail")
+
+		_, err := db.Exec("UPDATE users SET role = 'admin' WHERE id = $1", userID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update role"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "You are now an admin", "email": userEmail})
 	}
 }

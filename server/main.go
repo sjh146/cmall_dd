@@ -56,6 +56,17 @@ func main() {
 		api.GET("/products/search", handlers.SearchProducts(db))
 		api.GET("/products/:id", handlers.GetProduct(db))
 
+		// Diary routes (public GET, protected POST/DELETE)
+		api.GET("/diaries", handlers.GetDiaries(db))
+
+		// Lecture routes (public GET, protected CRUD)
+		api.GET("/lectures", handlers.GetLectures(db))
+		api.GET("/lectures/:id", handlers.GetLecture(db))
+
+		// Notice routes (public GET, protected CRUD)
+		api.GET("/notices", handlers.GetNotices(db))
+		api.GET("/notices/:id", handlers.GetNotice(db))
+
 		// Cart routes (optional auth - uses session if not logged in)
 		api.GET("/cart", handlers.OptionalAuthMiddleware(), handlers.GetCart(db))
 		api.POST("/cart", handlers.OptionalAuthMiddleware(), handlers.AddToCart(db))
@@ -76,6 +87,28 @@ func main() {
 			protected.PUT("/products/:id", handlers.UpdateProduct(db))
 			protected.DELETE("/products/:id", handlers.DeleteProduct(db))
 			protected.GET("/my-products", handlers.GetMyProducts(db))
+
+			// Diary (protected)
+			protected.POST("/diaries", handlers.CreateDiary(db))
+			protected.PUT("/diaries/:id", handlers.UpdateDiary(db))
+			protected.DELETE("/diaries", handlers.DeleteDiary(db))
+			protected.POST("/diary-comments", handlers.CreateComment(db))
+			protected.DELETE("/diary-comments", handlers.DeleteComment(db))
+
+			// Admin: Lectures (CRUD)
+			protected.GET("/admin/lectures", handlers.GetAllLectures(db))
+			protected.POST("/lectures", handlers.CreateLecture(db))
+			protected.PUT("/lectures/:id", handlers.UpdateLecture(db))
+			protected.DELETE("/lectures/:id", handlers.DeleteLecture(db))
+
+			// Admin: Notices (CRUD)
+			protected.GET("/admin/notices", handlers.GetAllNotices(db))
+			protected.POST("/notices", handlers.CreateNotice(db))
+			protected.PUT("/notices/:id", handlers.UpdateNotice(db))
+			protected.DELETE("/notices/:id", handlers.DeleteNotice(db))
+
+			// Admin: Set user as admin (for testing)
+			protected.POST("/admin/set-admin", handlers.SetUserAsAdmin(db))
 		}
 
 		// OpenClaw browser automation routes

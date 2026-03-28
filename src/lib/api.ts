@@ -25,7 +25,7 @@ export interface Product {
   originalPrice?: number;
   image: string;
   category: string;
-  productType: 'software' | 'ebook';
+  productType: 'program' | 'instruction' | 'diary';
   version?: string;
   downloadUrl?: string;
   fileSize?: string;
@@ -197,7 +197,7 @@ export async function fetchMyProducts(): Promise<Product[]> {
 export async function createProduct(data: {
   name: string;
   price: number;
-  productType: 'software' | 'ebook';
+  productType: 'program' | 'instruction' | 'diary';
   image?: string;
   category?: string;
   description?: string;
@@ -265,9 +265,10 @@ export async function fetchCart(): Promise<CartItem[]> {
   
   const response = await fetch(url, { headers });
   if (!response.ok) {
-    throw new Error('Failed to fetch cart');
+    return []; // Return empty array if cart doesn't exist
   }
-  return response.json();
+  const data = await response.json();
+  return data || [];
 }
 
 export async function addToCart(productId: number, quantity: number = 1): Promise<CartItem> {
@@ -325,4 +326,322 @@ export async function mergeCart(): Promise<void> {
   if (!response.ok) {
     throw new Error('Failed to merge cart');
   }
+}
+
+// Diary API
+export interface DiaryComment {
+  id: number;
+  diaryId: number;
+  userId: number;
+  userName?: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface DiaryEntry {
+  id: number;
+  userId: number;
+  userName?: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  comments: DiaryComment[];
+}
+
+export async function fetchDiaries(): Promise<DiaryEntry[]> {
+  const response = await fetch(`${API_BASE_URL}/diaries`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch diaries');
+  }
+  return response.json();
+}
+
+export async function createDiary(data: { title: string; content: string }): Promise<DiaryEntry> {
+  const token = getToken();
+  const response = await fetch(`${API_BASE_URL}/diaries`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to create diary');
+  }
+  return response.json();
+}
+
+export async function deleteDiary(id: number): Promise<void> {
+  const token = getToken();
+  const response = await fetch(`${API_BASE_URL}/diaries`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ id }),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to delete diary');
+  }
+}
+
+export async function updateDiary(id: number, data: { title: string; content: string }): Promise<DiaryEntry> {
+  const token = getToken();
+  const response = await fetch(`${API_BASE_URL}/diaries/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to update diary');
+  }
+  return response.json();
+}
+
+export async function createDiaryComment(data: { diaryId: number; content: string }): Promise<DiaryComment> {
+  const token = getToken();
+  const response = await fetch(`${API_BASE_URL}/diary-comments`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to create comment');
+  }
+  return response.json();
+}
+
+export async function deleteDiaryComment(id: number): Promise<void> {
+  const token = getToken();
+  const response = await fetch(`${API_BASE_URL}/diary-comments`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ id }),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to delete comment');
+  }
+}
+
+// ===== Lecture API =====
+
+export interface Lecture {
+  id: number;
+  title: string;
+  description?: string;
+  content?: string;
+  thumbnail?: string;
+  videoUrl?: string;
+  duration?: string;
+  instructor?: string;
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function fetchLectures(): Promise<Lecture[]> {
+  const response = await fetch(`${API_BASE_URL}/lectures`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch lectures');
+  }
+  return response.json();
+}
+
+export async function fetchLecture(id: number): Promise<Lecture> {
+  const response = await fetch(`${API_BASE_URL}/lectures/${id}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch lecture');
+  }
+  return response.json();
+}
+
+export async function fetchAllLectures(): Promise<Lecture[]> {
+  const token = getToken();
+  const response = await fetch(`${API_BASE_URL}/admin/lectures`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    throw new Error('Failed to fetch all lectures');
+  }
+  return response.json();
+}
+
+export async function createLecture(data: {
+  title: string;
+  description?: string;
+  content?: string;
+  thumbnail?: string;
+  videoUrl?: string;
+  duration?: string;
+  instructor?: string;
+  isPublished?: boolean;
+}): Promise<Lecture> {
+  const token = getToken();
+  const response = await fetch(`${API_BASE_URL}/lectures`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to create lecture');
+  }
+  return response.json();
+}
+
+export async function updateLecture(id: number, data: Partial<{
+  title: string;
+  description: string;
+  content: string;
+  thumbnail: string;
+  videoUrl: string;
+  duration: string;
+  instructor: string;
+  isPublished: boolean;
+}>): Promise<Lecture> {
+  const token = getToken();
+  const response = await fetch(`${API_BASE_URL}/lectures/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to update lecture');
+  }
+  return response.json();
+}
+
+export async function deleteLecture(id: number): Promise<void> {
+  const token = getToken();
+  const response = await fetch(`${API_BASE_URL}/lectures/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    throw new Error('Failed to delete lecture');
+  }
+}
+
+// ===== Notice API =====
+
+export interface Notice {
+  id: number;
+  title: string;
+  content: string;
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function fetchNotices(): Promise<Notice[]> {
+  const response = await fetch(`${API_BASE_URL}/notices`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch notices');
+  }
+  return response.json();
+}
+
+export async function fetchNotice(id: number): Promise<Notice> {
+  const response = await fetch(`${API_BASE_URL}/notices/${id}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch notice');
+  }
+  return response.json();
+}
+
+export async function fetchAllNotices(): Promise<Notice[]> {
+  const token = getToken();
+  const response = await fetch(`${API_BASE_URL}/admin/notices`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    throw new Error('Failed to fetch all notices');
+  }
+  return response.json();
+}
+
+export async function createNotice(data: {
+  title: string;
+  content: string;
+  isPublished?: boolean;
+}): Promise<Notice> {
+  const token = getToken();
+  const response = await fetch(`${API_BASE_URL}/notices`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to create notice');
+  }
+  return response.json();
+}
+
+export async function updateNotice(id: number, data: Partial<{
+  title: string;
+  content: string;
+  isPublished: boolean;
+}>): Promise<Notice> {
+  const token = getToken();
+  const response = await fetch(`${API_BASE_URL}/notices/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to update notice');
+  }
+  return response.json();
+}
+
+export async function deleteNotice(id: number): Promise<void> {
+  const token = getToken();
+  const response = await fetch(`${API_BASE_URL}/notices/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    throw new Error('Failed to delete notice');
+  }
+}
+
+// Set current user as admin (for testing)
+export async function setUserAsAdmin(): Promise<{ message: string; email: string }> {
+  const token = getToken();
+  const response = await fetch(`${API_BASE_URL}/admin/set-admin`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to set admin');
+  }
+  return response.json();
 }

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { CartProvider } from './contexts/CartContext';
 import { Header } from './components/Header';
 import { HeroSection } from './components/HeroSection';
 import { ProductCard, Product } from './components/ProductCard';
@@ -8,7 +9,12 @@ import { ProductFilters, FilterOptions } from './components/ProductFilters';
 import { MobileFilters } from './components/MobileFilters';
 import AuthPage from './pages/AuthPage';
 import SellerDashboard from './pages/SellerDashboard';
+import DiaryPage from './pages/DiaryPage';
 import MyProducts from './pages/MyProducts';
+import AdminPage from './pages/AdminPage';
+import LecturePage from './pages/LecturePage';
+import NoticePage from './pages/NoticePage';
+import ProductPage from './pages/ProductPage';
 import { Button } from './components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './components/ui/select';
 import { Grid, List } from 'lucide-react';
@@ -101,8 +107,10 @@ function HomePage() {
     const loadCart = async () => {
       try {
         const apiCartItems = await fetchCart();
-        const convertedCartItems = apiCartItems.map(convertAPICartItemToCartItem);
-        setCartItems(convertedCartItems);
+        if (apiCartItems && Array.isArray(apiCartItems)) {
+          const convertedCartItems = apiCartItems.map(convertAPICartItemToCartItem);
+          setCartItems(convertedCartItems);
+        }
       } catch (err) {
         console.error('Failed to load cart:', err);
       }
@@ -239,7 +247,6 @@ function HomePage() {
   return (
     <>
       <Header
-        cartItemCount={cartItemCount}
         onCartClick={() => setIsCartOpen(true)}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -438,12 +445,19 @@ function HomePage() {
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/auth" element={<AuthPage />} />
-        <Route path="/seller" element={<SellerDashboard />} />
-        <Route path="/my-products" element={<MyProducts />} />
-      </Routes>
+      <CartProvider>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/auth" element={<AuthPage />} />
+          <Route path="/seller" element={<SellerDashboard />} />
+          <Route path="/diary" element={<DiaryPage />} />
+          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/lectures" element={<LecturePage />} />
+          <Route path="/notices" element={<NoticePage />} />
+          <Route path="/my-products" element={<MyProducts />} />
+          <Route path="/product/:id" element={<ProductPage />} />
+        </Routes>
+      </CartProvider>
     </BrowserRouter>
   );
 }

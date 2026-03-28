@@ -25,15 +25,13 @@ interface ProductFiltersProps {
 }
 
 const categoryLabels: Record<string, string> = {
-  'software': 'Software',
-  'ebook': 'E-Books',
-  'productivity': 'Productivity',
-  'development': 'Development Tools',
-  'design': 'Design & Graphics',
-  'utilities': 'Utilities',
-  'education': 'Education & Learning',
-  'business': 'Business & Finance',
-  'lifestyle': 'Lifestyle',
+  'strategy': 'Trading Strategy',
+  'indicator': 'Trading Indicator',
+  'bot': 'Trading Bot',
+  'signal': 'Trading Signals',
+  'course': 'Educational Course',
+  'ebook': 'E-Book',
+  'template': 'Trading Template',
   'other': 'Other'
 };
 

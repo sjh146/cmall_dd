@@ -1,7 +1,7 @@
 import { X, Minus, Plus, ShoppingBag } from 'lucide-react';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
+import { SimpleModal } from './ui/SimpleModal';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Product } from './ProductCard';
 
@@ -31,14 +31,18 @@ export function ShoppingCart({
   };
 
   return (
-    <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="w-full sm:max-w-lg bg-background">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <ShoppingBag className="h-5 w-5" />
-            Shopping Cart ({cartItems.reduce((sum, item) => sum + item.quantity, 0)})
-          </SheetTitle>
-        </SheetHeader>
+    <SimpleModal
+      open={isOpen}
+      onClose={onClose}
+      title=""
+      className="max-w-lg"
+    >
+      <div className="flex items-center gap-2 mb-4 pb-4 border-b border-[#262626]">
+        <ShoppingBag className="h-5 w-5 text-[#d4af37]" />
+        <h2 className="text-lg font-semibold text-[#fafafa]">
+          Shopping Cart ({cartItems.reduce((sum, item) => sum + item.quantity, 0)})
+        </h2>
+      </div>
         
         <div className="flex flex-col h-full">
           {cartItems.length === 0 ? (
@@ -128,7 +132,6 @@ export function ShoppingCart({
             </>
           )}
         </div>
-      </SheetContent>
-    </Sheet>
-  );
+      </SimpleModal>
+    );
 }

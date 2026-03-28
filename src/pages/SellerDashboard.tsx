@@ -11,15 +11,14 @@ import { Textarea } from '../components/ui/textarea';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { ArrowLeft, Plus, Package, DollarSign } from 'lucide-react';
 import { Link } from 'react-router-dom';
-
 const categories = [
-  { value: 'productivity', label: 'Productivity' },
-  { value: 'development', label: 'Development Tools' },
-  { value: 'design', label: 'Design & Graphics' },
-  { value: 'utilities', label: 'Utilities' },
-  { value: 'education', label: 'Education & Learning' },
-  { value: 'business', label: 'Business & Finance' },
-  { value: 'lifestyle', label: 'Lifestyle' },
+  { value: 'strategy', label: 'Trading Strategy' },
+  { value: 'indicator', label: 'Trading Indicator' },
+  { value: 'bot', label: 'Trading Bot' },
+  { value: 'signal', label: 'Trading Signals' },
+  { value: 'course', label: 'Educational Course' },
+  { value: 'ebook', label: 'E-Book' },
+  { value: 'template', label: 'Trading Template' },
   { value: 'other', label: 'Other' },
 ];
 
@@ -28,11 +27,10 @@ export default function SellerDashboard() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-
   const [formData, setFormData] = useState({
     name: '',
     price: '',
-    productType: 'software' as 'software' | 'ebook',
+    productType: 'program' as const,
     category: '',
     version: '',
     fileSize: '',
@@ -103,7 +101,7 @@ export default function SellerDashboard() {
             <Link to="/" className="flex items-center gap-2">
               <ArrowLeft className="h-5 w-5" />
               <span className="text-3xl font-bold" style={{ fontFamily: 'Permanent Marker, cursive' }}>
-                DevMall
+                FQT
               </span>
             </Link>
             <Link to="/my-products">
@@ -120,7 +118,7 @@ export default function SellerDashboard() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Add New Product</h1>
           <p className="text-muted-foreground mt-2">
-            Create a new {formData.productType === 'software' ? 'software' : 'e-book'} listing for your store.
+            Create a new {formData.productType} listing for your store.
           </p>
         </div>
 
@@ -129,7 +127,7 @@ export default function SellerDashboard() {
             <CardHeader>
               <CardTitle>Product Information</CardTitle>
               <CardDescription>
-                Fill in the details for your {formData.productType === 'software' ? 'software' : 'e-book'}.
+                Fill in the details for your {formData.productType}.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -142,26 +140,30 @@ export default function SellerDashboard() {
               {/* Product Type */}
               <div className="space-y-2">
                 <Label>Product Type *</Label>
-                <Select 
-                  value={formData.productType} 
-                  onValueChange={(value: 'software' | 'ebook') => setFormData({ ...formData, productType: value })}
+                <Select
+                  value={formData.productType}
+                  onValueChange={(value: 'program' | 'code') => setFormData({ ...formData, productType: value })}
+                  disabled={user?.role !== 'admin'}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="software">
+                    <SelectItem value="program">
                       <span className="flex items-center gap-2">
-                        <span>💻</span> Software
+                        <span>💻</span> Program
                       </span>
                     </SelectItem>
-                    <SelectItem value="ebook">
+                    <SelectItem value="code">
                       <span className="flex items-center gap-2">
-                        <span>📚</span> E-Book
+                        <span>🔧</span> Code
                       </span>
                     </SelectItem>
                   </SelectContent>
                 </Select>
+                {user?.role !== 'admin' && (
+                  <p className="text-xs text-[#737373]">Only admins can create Program or Instruction products.</p>
+                )}
               </div>
 
               {/* Product Name */}
@@ -219,7 +221,7 @@ export default function SellerDashboard() {
                   <Label htmlFor="version">Version</Label>
                   <Input
                     id="version"
-                    placeholder={formData.productType === 'software' ? 'e.g. 1.0.0' : 'e.g. 2024 Edition'}
+                    placeholder={formData.productType === 'program' || formData.productType === 'code' ? 'e.g. 1.0.0' : 'e.g. 2024 Edition'}
                     value={formData.version}
                     onChange={(e) => setFormData({ ...formData, version: e.target.value })}
                   />
@@ -291,7 +293,7 @@ export default function SellerDashboard() {
               </div>
 
               {/* System Requirements */}
-              {formData.productType === 'software' && (
+              {(formData.productType === 'program' || formData.productType === 'code') && (
                 <div className="space-y-2">
                   <Label htmlFor="systemRequirements">System Requirements</Label>
                   <Textarea

@@ -118,7 +118,7 @@ The frontend will start on `http://localhost:5173`.
 | original_price | INTEGER | Original price |
 | image | VARCHAR(500) | Product image URL |
 | category | VARCHAR(100) | Product category |
-| product_type | VARCHAR(50) | 'software' or 'ebook' |
+| product_type | VARCHAR(50) | 'program', 'instruction', or 'diary' |
 | version | VARCHAR(50) | Version/edition |
 | download_url | VARCHAR(500) | Download link |
 | file_size | VARCHAR(50) | File size |

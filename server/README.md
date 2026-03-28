@@ -103,7 +103,7 @@ Server runs on `http://localhost:8080`.
 | original_price | INTEGER | Original price |
 | image | VARCHAR(500) | Image URL |
 | category | VARCHAR(100) | Category |
-| product_type | VARCHAR(50) | 'software' or 'ebook' |
+| product_type | VARCHAR(50) | 'program', 'instruction', or 'diary' |
 | version | VARCHAR(50) | Version |
 | download_url | VARCHAR(500) | Download link |
 | file_size | VARCHAR(50) | File size |

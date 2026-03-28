@@ -147,5 +147,86 @@ func CreateTables(db *sql.DB) error {
 	}
 
 	log.Println("Successfully created cart table")
+
+	// Create diaries table (guestbook-style trading diary)
+	createDiariesTableSQL := `
+		CREATE TABLE IF NOT EXISTS diaries (
+			id SERIAL PRIMARY KEY,
+			user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+			title VARCHAR(255) NOT NULL,
+			content TEXT NOT NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_diaries_user_id ON diaries(user_id);
+		`
+
+	if _, err := db.Exec(createDiariesTableSQL); err != nil {
+		return fmt.Errorf("failed to create diaries table: %w", err)
+	}
+	log.Println("Successfully created diaries table")
+
+	// Create diary_comments table
+	createDiaryCommentsTableSQL := `
+		CREATE TABLE IF NOT EXISTS diary_comments (
+			id SERIAL PRIMARY KEY,
+			diary_id INTEGER REFERENCES diaries(id) ON DELETE CASCADE,
+			user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+			content TEXT NOT NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_diary_comments_diary_id ON diary_comments(diary_id);
+		CREATE INDEX IF NOT EXISTS idx_diary_comments_user_id ON diary_comments(user_id);
+		`
+
+	if _, err := db.Exec(createDiaryCommentsTableSQL); err != nil {
+		return fmt.Errorf("failed to create diary_comments table: %w", err)
+	}
+	log.Println("Successfully created diary_comments table")
+
+	// Create lectures table
+	createLecturesTableSQL := `
+		CREATE TABLE IF NOT EXISTS lectures (
+			id SERIAL PRIMARY KEY,
+			title VARCHAR(255) NOT NULL,
+			description TEXT,
+			content TEXT,
+			thumbnail VARCHAR(500),
+			video_url VARCHAR(500),
+			duration VARCHAR(50),
+			instructor VARCHAR(255),
+			is_published BOOLEAN DEFAULT false,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_lectures_published ON lectures(is_published);
+		`
+
+	if _, err := db.Exec(createLecturesTableSQL); err != nil {
+		return fmt.Errorf("failed to create lectures table: %w", err)
+	}
+	log.Println("Successfully created lectures table")
+
+	// Create notices table
+	createNoticesTableSQL := `
+		CREATE TABLE IF NOT EXISTS notices (
+			id SERIAL PRIMARY KEY,
+			title VARCHAR(255) NOT NULL,
+			content TEXT NOT NULL,
+			is_published BOOLEAN DEFAULT false,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_notices_published ON notices(is_published);
+		`
+
+	if _, err := db.Exec(createNoticesTableSQL); err != nil {
+		return fmt.Errorf("failed to create notices table: %w", err)
+	}
+	log.Println("Successfully created notices table")
+
 	return nil
 }

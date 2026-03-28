@@ -101,10 +101,13 @@ func CreateProduct(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// Validate product type
-		if req.ProductType != "software" && req.ProductType != "ebook" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Product type must be 'software' or 'ebook'"})
-			return
+		// Validate product type and role restrictions
+		if req.ProductType == "program" {
+			userRole, _ := c.Get("userRole")
+			if userRole != "admin" {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Only admins can create 'program' products"})
+				return
+			}
 		}
 
 		query := `
@@ -190,8 +193,8 @@ func UpdateProduct(db *sql.DB) gin.HandlerFunc {
 			argIndex++
 		}
 		if req.ProductType != nil {
-			if *req.ProductType != "software" && *req.ProductType != "ebook" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Product type must be 'software' or 'ebook'"})
+			if *req.ProductType != "program" && *req.ProductType != "diary" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Product type must be 'program' or 'diary'"})
 				return
 			}
 			query += ", product_type = $" + strconv.Itoa(argIndex)
