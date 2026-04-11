@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  # Backend API (Go + Gin)
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cmall_dd-backend
+    ports:
+      - "8081:8081"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=postgres
+      - PORT=8081
+      - JWT_SECRET=cmall_dd_secret_key_change_in_production
+      - ADMIN_EMAIL=a@naver.com
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - cmall_dd-network
+
+  # Frontend (Vite + React)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: cmall_dd-frontend
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_API_URL=http://localhost:8081/api/v1
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - cmall_dd-network
+
+  # PostgreSQL Database
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: cmall_dd-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - cmall_dd-network
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: cmall_dd-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+    networks:
+      - cmall_dd-network
+
+networks:
+  cmall_dd-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
