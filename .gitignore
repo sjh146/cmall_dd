@@ -79,4 +79,5 @@ temp/
 server/cmall_dd
 server/*.exe
 server/.env
+server/.env.docker  # Docker용 env 파일 (별도 관리)
 server/vendor/

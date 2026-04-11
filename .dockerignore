@@ -1,0 +1,22 @@
+# Ignore development files
+node_modules
+.git
+.gitignore
+*.md
+.vscode
+.idea
+*.local
+
+# Ignore build outputs
+build
+dist
+coverage
+
+# Ignore Go build outputs
+server/cmall_dd
+server/*.exe
+
+# Ignore temp files
+tmp
+temp
+*.log

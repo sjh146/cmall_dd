@@ -3,12 +3,11 @@ FROM golang:1.21-alpine AS builder
 
 WORKDIR /app
 
-# Install dependencies
+# Install build dependencies
 RUN apk add --no-cache gcc musl-dev
 
 # Copy go mod files
 COPY server/go.mod server/go.sum ./
-WORKDIR /app
 
 # Download dependencies
 RUN go mod download
@@ -29,9 +28,6 @@ RUN apk add --no-cache ca-certificates
 
 # Copy the binary from builder
 COPY --from=builder /app/cmall_dd .
-
-# Copy .env file
-COPY server/.env .
 
 # Expose port
 EXPOSE 8081
