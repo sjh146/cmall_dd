@@ -150,3 +150,4 @@ func splitEnv(val string, defaults []string) []string {
 	return out
 }
 // ci e2e: jenkins webhook verification
+// ci e2e: webhook re-registered to 8080 tunnel (jenkins)
