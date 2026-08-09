@@ -4,8 +4,10 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
+	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"cmall_dd/internal/models"
 	"github.com/gin-gonic/gin"
@@ -54,7 +56,7 @@ func GetCart(db *sql.DB) gin.HandlerFunc {
 
 		rows, err := db.Query(query, args...)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 		defer rows.Close()
@@ -75,7 +77,7 @@ func GetCart(db *sql.DB) gin.HandlerFunc {
 				&product.Features, &product.SystemReq, &product.CreatedAt, &product.UpdatedAt,
 			)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				respondDBError(c, err)
 				return
 			}
 
@@ -142,7 +144,7 @@ func AddToCart(db *sql.DB) gin.HandlerFunc {
 				&item.UserID, &item.CreatedAt, &item.UpdatedAt,
 			)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				respondDBError(c, err)
 				return
 			}
 			c.JSON(http.StatusOK, item)
@@ -169,7 +171,15 @@ func AddToCart(db *sql.DB) gin.HandlerFunc {
 		)
 
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			// A foreign-key violation means the referenced product does not
+			// exist. Return a generic 400 to the client (no driver detail) and
+			// log the detail server-side.
+			if strings.Contains(err.Error(), "violates foreign key constraint") {
+				log.Printf("invalid product in cart add: %v", err)
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid product"})
+				return
+			}
+			respondDBError(c, err)
 			return
 		}
 
@@ -212,7 +222,7 @@ func UpdateCartItem(db *sql.DB) gin.HandlerFunc {
 				return
 			}
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				respondDBError(c, err)
 				return
 			}
 			if !ownerID.Valid || int(ownerID.Int64) != userID.(int) {
@@ -246,7 +256,7 @@ func UpdateCartItem(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
@@ -272,7 +282,7 @@ func RemoveFromCart(db *sql.DB) gin.HandlerFunc {
 				return
 			}
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				respondDBError(c, err)
 				return
 			}
 			if !ownerID.Valid || int(ownerID.Int64) != userID.(int) {
@@ -290,7 +300,7 @@ func RemoveFromCart(db *sql.DB) gin.HandlerFunc {
 
 		result, err := db.Exec("DELETE FROM cart WHERE id = $1", id)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
@@ -334,7 +344,7 @@ func verifyAnonymousSessionIP(c *gin.Context, db *sql.DB, sessionID string) bool
 		return true
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondDBError(c, err)
 		return false
 	}
 	if recordedIP != c.ClientIP() {
@@ -408,7 +418,7 @@ func verifyAnonymousCartOwnership(c *gin.Context, db *sql.DB, id int) bool {
 		return false
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondDBError(c, err)
 		return false
 	}
 	if ownerID.Valid && ownerID.Int64 != 0 {
@@ -446,7 +456,7 @@ func MergeCart(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 		if recordedIP != c.ClientIP() {
@@ -471,14 +481,14 @@ func MergeCart(db *sql.DB) gin.HandlerFunc {
 		`
 		_, err = db.Exec(query, userID, sessionID)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
 		// Delete old session cart items
 		_, err = db.Exec("DELETE FROM cart WHERE session_id = $1 AND user_id IS NULL", sessionID)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 

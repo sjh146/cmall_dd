@@ -23,7 +23,7 @@ func GetLectures(db *sql.DB) gin.HandlerFunc {
 
 		rows, err := db.Query(query)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 		defer rows.Close()
@@ -32,7 +32,7 @@ func GetLectures(db *sql.DB) gin.HandlerFunc {
 		for rows.Next() {
 			var l models.Lecture
 			if err := rows.Scan(&l.ID, &l.Title, &l.Description, &l.Content, &l.Thumbnail, &l.VideoURL, &l.Duration, &l.Instructor, &l.IsPublished, &l.CreatedAt, &l.UpdatedAt); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				respondDBError(c, err)
 				return
 			}
 			lectures = append(lectures, l)
@@ -65,7 +65,7 @@ func GetAllLectures(db *sql.DB) gin.HandlerFunc {
 
 		rows, err := db.Query(query)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 		defer rows.Close()
@@ -74,7 +74,7 @@ func GetAllLectures(db *sql.DB) gin.HandlerFunc {
 		for rows.Next() {
 			var l models.Lecture
 			if err := rows.Scan(&l.ID, &l.Title, &l.Description, &l.Content, &l.Thumbnail, &l.VideoURL, &l.Duration, &l.Instructor, &l.IsPublished, &l.CreatedAt, &l.UpdatedAt); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				respondDBError(c, err)
 				return
 			}
 			lectures = append(lectures, l)
@@ -106,7 +106,7 @@ func GetLecture(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
@@ -155,7 +155,7 @@ func CreateLecture(db *sql.DB) gin.HandlerFunc {
 			&l.ID, &l.Title, &l.Description, &l.Content, &l.Thumbnail, &l.VideoURL, &l.Duration, &l.Instructor, &l.IsPublished, &l.CreatedAt, &l.UpdatedAt,
 		)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
@@ -191,7 +191,7 @@ func UpdateLecture(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
@@ -248,7 +248,7 @@ func UpdateLecture(db *sql.DB) gin.HandlerFunc {
 			&l.ID, &l.Title, &l.Description, &l.Content, &l.Thumbnail, &l.VideoURL, &l.Duration, &l.Instructor, &l.IsPublished, &l.CreatedAt, &l.UpdatedAt,
 		)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
@@ -270,7 +270,7 @@ func DeleteLecture(db *sql.DB) gin.HandlerFunc {
 
 		result, err := db.Exec("DELETE FROM lectures WHERE id = $1", id)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 

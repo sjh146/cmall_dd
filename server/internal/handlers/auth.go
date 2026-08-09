@@ -87,7 +87,7 @@ func Register(db *sql.DB) gin.HandlerFunc {
 			&user.Avatar, &user.Bio, &user.CreatedAt, &user.UpdatedAt,
 		)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
@@ -129,7 +129,7 @@ func Login(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
@@ -172,7 +172,7 @@ func GetCurrentUser(db *sql.DB) gin.HandlerFunc {
 			&user.Avatar, &user.Bio, &user.CreatedAt, &user.UpdatedAt,
 		)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
@@ -228,7 +228,7 @@ func UpdateUser(db *sql.DB) gin.HandlerFunc {
 			&user.Avatar, &user.Bio, &user.CreatedAt, &user.UpdatedAt,
 		)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 

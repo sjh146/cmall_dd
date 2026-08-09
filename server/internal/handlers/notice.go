@@ -23,7 +23,7 @@ func GetNotices(db *sql.DB) gin.HandlerFunc {
 
 		rows, err := db.Query(query)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 		defer rows.Close()
@@ -32,7 +32,7 @@ func GetNotices(db *sql.DB) gin.HandlerFunc {
 		for rows.Next() {
 			var n models.Notice
 			if err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.IsPublished, &n.CreatedAt, &n.UpdatedAt); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				respondDBError(c, err)
 				return
 			}
 			notices = append(notices, n)
@@ -65,7 +65,7 @@ func GetAllNotices(db *sql.DB) gin.HandlerFunc {
 
 		rows, err := db.Query(query)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 		defer rows.Close()
@@ -74,7 +74,7 @@ func GetAllNotices(db *sql.DB) gin.HandlerFunc {
 		for rows.Next() {
 			var n models.Notice
 			if err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.IsPublished, &n.CreatedAt, &n.UpdatedAt); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				respondDBError(c, err)
 				return
 			}
 			notices = append(notices, n)
@@ -106,7 +106,7 @@ func GetNotice(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
@@ -155,7 +155,7 @@ func CreateNotice(db *sql.DB) gin.HandlerFunc {
 			&n.ID, &n.Title, &n.Content, &n.IsPublished, &n.CreatedAt, &n.UpdatedAt,
 		)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
@@ -191,7 +191,7 @@ func UpdateNotice(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
@@ -223,7 +223,7 @@ func UpdateNotice(db *sql.DB) gin.HandlerFunc {
 			&n.ID, &n.Title, &n.Content, &n.IsPublished, &n.CreatedAt, &n.UpdatedAt,
 		)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
@@ -245,7 +245,7 @@ func DeleteNotice(db *sql.DB) gin.HandlerFunc {
 
 		result, err := db.Exec("DELETE FROM notices WHERE id = $1", id)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 

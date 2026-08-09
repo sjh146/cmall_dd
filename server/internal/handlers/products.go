@@ -23,7 +23,7 @@ func GetProducts(db *sql.DB) gin.HandlerFunc {
 
 		rows, err := db.Query(query)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 		defer rows.Close()
@@ -38,7 +38,7 @@ func GetProducts(db *sql.DB) gin.HandlerFunc {
 				&p.CreatedAt, &p.UpdatedAt,
 			)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				respondDBError(c, err)
 				return
 			}
 			products = append(products, p)
@@ -78,7 +78,7 @@ func GetProduct(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
@@ -137,7 +137,7 @@ func CreateProduct(db *sql.DB) gin.HandlerFunc {
 		)
 
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
@@ -257,7 +257,7 @@ func UpdateProduct(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
@@ -282,7 +282,7 @@ func DeleteProduct(db *sql.DB) gin.HandlerFunc {
 
 		result, err := db.Exec("DELETE FROM products WHERE id = $1 AND seller_id = $2", id, sellerID)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
@@ -316,7 +316,7 @@ func GetMyProducts(db *sql.DB) gin.HandlerFunc {
 
 		rows, err := db.Query(query, sellerID)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 		defer rows.Close()
@@ -331,7 +331,7 @@ func GetMyProducts(db *sql.DB) gin.HandlerFunc {
 				&p.CreatedAt, &p.UpdatedAt,
 			)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				respondDBError(c, err)
 				return
 			}
 			products = append(products, p)
@@ -378,7 +378,7 @@ func SearchProducts(db *sql.DB) gin.HandlerFunc {
 
 		rows, err := db.Query(query, args...)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 		defer rows.Close()
@@ -393,7 +393,7 @@ func SearchProducts(db *sql.DB) gin.HandlerFunc {
 				&p.CreatedAt, &p.UpdatedAt,
 			)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				respondDBError(c, err)
 				return
 			}
 			products = append(products, p)

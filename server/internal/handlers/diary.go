@@ -61,7 +61,7 @@ func GetDiaries(db *sql.DB) gin.HandlerFunc {
 
 		rows, err := db.Query(query, userID)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 		defer rows.Close()
@@ -73,7 +73,7 @@ func GetDiaries(db *sql.DB) gin.HandlerFunc {
 		for rows.Next() {
 			var d Diary
 			if err := rows.Scan(&d.ID, &d.UserID, &d.UserName, &d.Title, &d.Content, &d.CreatedAt); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				respondDBError(c, err)
 				return
 			}
 			diaryIDs = append(diaryIDs, d.ID)
@@ -158,7 +158,7 @@ func CreateDiary(db *sql.DB) gin.HandlerFunc {
 			&d.ID, &d.UserID, &d.Title, &d.Content, &d.CreatedAt,
 		)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
@@ -204,7 +204,7 @@ func DeleteDiary(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
@@ -215,7 +215,7 @@ func DeleteDiary(db *sql.DB) gin.HandlerFunc {
 
 		_, err = db.Exec("DELETE FROM diaries WHERE id = $1", req.ID)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
@@ -255,7 +255,7 @@ func UpdateDiary(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
@@ -277,7 +277,7 @@ func UpdateDiary(db *sql.DB) gin.HandlerFunc {
 			&d.ID, &d.UserID, &d.Title, &d.Content, &d.CreatedAt,
 		)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
@@ -317,7 +317,7 @@ func CreateComment(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
@@ -337,7 +337,7 @@ func CreateComment(db *sql.DB) gin.HandlerFunc {
 			&comment.ID, &comment.DiaryID, &comment.UserID, &comment.Content, &comment.CreatedAt,
 		)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
@@ -375,7 +375,7 @@ func DeleteComment(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
@@ -386,7 +386,7 @@ func DeleteComment(db *sql.DB) gin.HandlerFunc {
 
 		_, err = db.Exec("DELETE FROM diary_comments WHERE id = $1", req.ID)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondDBError(c, err)
 			return
 		}
 
