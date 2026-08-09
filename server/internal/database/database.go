@@ -153,12 +153,23 @@ func CreateTables(db *sql.DB) error {
 	CREATE TABLE IF NOT EXISTS cart_sessions (
 		session_id VARCHAR(255) PRIMARY KEY,
 		client_ip VARCHAR(64) NOT NULL,
+		guest_cookie VARCHAR(128) NOT NULL DEFAULT '',
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
 	`
 
 	if _, err := db.Exec(createCartSessionsTableSQL); err != nil {
 		return fmt.Errorf("failed to create cart_sessions table: %w", err)
+	}
+
+	// CREATE TABLE IF NOT EXISTS does not alter an existing table, so add the
+	// guest_cookie column idempotently for deployments that already have a
+	// cart_sessions table without it. PostgreSQL supports ADD COLUMN IF NOT EXISTS.
+	alterCartSessionsSQL := `
+	ALTER TABLE cart_sessions ADD COLUMN IF NOT EXISTS guest_cookie VARCHAR(128) NOT NULL DEFAULT '';
+	`
+	if _, err := db.Exec(alterCartSessionsSQL); err != nil {
+		return fmt.Errorf("failed to add guest_cookie column to cart_sessions: %w", err)
 	}
 
 	log.Println("Successfully created cart_sessions table")

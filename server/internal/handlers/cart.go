@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"net/http"
 	"strconv"
 
@@ -313,14 +315,22 @@ func verifyAnonymousSessionIP(c *gin.Context, db *sql.DB, sessionID string) bool
 		return false
 	}
 	var recordedIP string
-	err := db.QueryRow("SELECT client_ip FROM cart_sessions WHERE session_id = $1", sessionID).Scan(&recordedIP)
+	var recordedGuestCookie string
+	err := db.QueryRow("SELECT client_ip, guest_cookie FROM cart_sessions WHERE session_id = $1", sessionID).Scan(&recordedIP, &recordedGuestCookie)
 	if err == sql.ErrNoRows {
-		// First access: record the caller's IP and allow.
+		// First access: issue a fresh HttpOnly guest cookie, record the
+		// caller's IP and cookie, and allow.
+		newValue, genErr := generateGuestCookie()
+		if genErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": genErr.Error()})
+			return false
+		}
+		setGuestCookie(c, newValue)
 		_, _ = db.Exec(`
-			INSERT INTO cart_sessions (session_id, client_ip)
-			VALUES ($1, $2)
-			ON CONFLICT (session_id) DO UPDATE SET client_ip = EXCLUDED.client_ip
-		`, sessionID, c.ClientIP())
+			INSERT INTO cart_sessions (session_id, client_ip, guest_cookie)
+			VALUES ($1, $2, $3)
+			ON CONFLICT (session_id) DO UPDATE SET client_ip = EXCLUDED.client_ip, guest_cookie = EXCLUDED.guest_cookie
+		`, sessionID, c.ClientIP(), newValue)
 		return true
 	}
 	if err != nil {
@@ -331,7 +341,59 @@ func verifyAnonymousSessionIP(c *gin.Context, db *sql.DB, sessionID string) bool
 		c.JSON(http.StatusForbidden, gin.H{"error": "Session cart does not belong to this client"})
 		return false
 	}
-	return true
+	// Bind the server-issued HttpOnly guest cookie to the session as well.
+	// Real browsers (frontend) go through same-origin nginx, so the HttpOnly
+	// cookie is automatically maintained on every request and normal flows are
+	// unaffected. This binding only rejects clients that cannot present the
+	// cookie the server originally issued for this session.
+	ok, _ := verifyAnonymousSessionCookie(c, db, sessionID, recordedGuestCookie)
+	return ok
+}
+
+// verifyAnonymousSessionCookie binds the server-issued HttpOnly cmall_guest
+// cookie to an anonymous cart session. It returns (true, newValue) when the
+// request is allowed, and (false, "") after writing a 403 when it is not.
+//
+// - If the recorded guest_cookie is empty (a legacy row created before cookie
+//   binding existed), a new cookie is issued, the row is updated, and the
+//   request is allowed — a one-time migration path so existing anonymous carts
+//   do not break.
+// - If the request's cmall_guest cookie matches the recorded value, allow.
+// - Otherwise the cookie is missing or mismatched → 403.
+func verifyAnonymousSessionCookie(c *gin.Context, db *sql.DB, sessionID string, recordedGuestCookie string) (bool, string) {
+	reqCookie, err := c.Cookie("cmall_guest")
+	if recordedGuestCookie == "" {
+		// Legacy row: bind a fresh cookie and allow.
+		newValue, genErr := generateGuestCookie()
+		if genErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": genErr.Error()})
+			return false, ""
+		}
+		setGuestCookie(c, newValue)
+		_, _ = db.Exec("UPDATE cart_sessions SET guest_cookie = $1 WHERE session_id = $2", newValue, sessionID)
+		return true, newValue
+	}
+	if err != nil || reqCookie != recordedGuestCookie {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Session cart does not belong to this client"})
+		return false, ""
+	}
+	return true, ""
+}
+
+// generateGuestCookie returns a cryptographically random 64-hex-char value for
+// the cmall_guest cookie. crypto/rand is used (never math/rand) for security.
+func generateGuestCookie() (string, error) {
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buf), nil
+}
+
+// setGuestCookie writes the HttpOnly cmall_guest cookie on the response.
+func setGuestCookie(c *gin.Context, value string) {
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie("cmall_guest", value, 0, "/", "", false, true)
 }
 
 // verifyAnonymousCartOwnership ensures an unauthenticated request may only
@@ -377,7 +439,8 @@ func MergeCart(db *sql.DB) gin.HandlerFunc {
 		}
 
 		var recordedIP string
-		err := db.QueryRow("SELECT client_ip FROM cart_sessions WHERE session_id = $1", sessionID).Scan(&recordedIP)
+		var recordedGuestCookie string
+		err := db.QueryRow("SELECT client_ip, guest_cookie FROM cart_sessions WHERE session_id = $1", sessionID).Scan(&recordedIP, &recordedGuestCookie)
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Session cart ownership could not be verified"})
 			return
@@ -388,6 +451,13 @@ func MergeCart(db *sql.DB) gin.HandlerFunc {
 		}
 		if recordedIP != c.ClientIP() {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Session cart does not belong to this client"})
+			return
+		}
+		// Verify the server-issued HttpOnly guest cookie matches the recorded
+		// value for this session. Real browsers (frontend) go through
+		// same-origin nginx so the HttpOnly cookie is automatically maintained
+		// and normal flows are unaffected.
+		if ok, _ := verifyAnonymousSessionCookie(c, db, sessionID, recordedGuestCookie); !ok {
 			return
 		}
 

@@ -101,9 +101,12 @@ func CreateProduct(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// Validate product type and role restrictions
+		// Validate product type and role restrictions. Normalize the type
+		// (lowercase + trim) so case/whitespace variants like "Program",
+		// "PROGRAM", or " program " cannot bypass the admin-only allowlist.
+		normalizedType := strings.ToLower(strings.TrimSpace(req.ProductType))
 		adminOnlyTypes := map[string]bool{"program": true, "code": true, "instruction": true}
-		if adminOnlyTypes[req.ProductType] {
+		if adminOnlyTypes[normalizedType] {
 			userRole, _ := c.Get("userRole")
 			if userRole != "admin" {
 				c.JSON(http.StatusForbidden, gin.H{"error": "Only admins can create 'program' products"})
@@ -124,7 +127,7 @@ func CreateProduct(db *sql.DB) gin.HandlerFunc {
 		var p models.Product
 		err := db.QueryRow(query,
 			sellerID, req.Name, req.Price, req.OriginalPrice, req.Image, req.Category,
-			req.ProductType, req.Version, req.DownloadURL, req.FileSize, req.LicenseKey,
+			normalizedType, req.Version, req.DownloadURL, req.FileSize, req.LicenseKey,
 			req.Description, req.Features, req.SystemReq,
 		).Scan(
 			&p.ID, &p.SellerID, &p.Name, &p.Price, &p.OriginalPrice, &p.Image,
