@@ -57,9 +57,6 @@ func main() {
 		api.GET("/products/search", handlers.SearchProducts(db))
 		api.GET("/products/:id", handlers.GetProduct(db))
 
-		// Diary routes (public GET, protected POST/DELETE)
-		api.GET("/diaries", handlers.GetDiaries(db))
-
 		// Lecture routes (public GET, protected CRUD)
 		api.GET("/lectures", handlers.GetLectures(db))
 		api.GET("/lectures/:id", handlers.GetLecture(db))
@@ -90,6 +87,7 @@ func main() {
 			protected.GET("/my-products", handlers.GetMyProducts(db))
 
 			// Diary (protected)
+			protected.GET("/diaries", handlers.GetDiaries(db))
 			protected.POST("/diaries", handlers.CreateDiary(db))
 			protected.PUT("/diaries/:id", handlers.UpdateDiary(db))
 			protected.DELETE("/diaries", handlers.DeleteDiary(db))

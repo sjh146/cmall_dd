@@ -208,6 +208,10 @@ func UpdateCartItem(db *sql.DB) gin.HandlerFunc {
 					c.JSON(http.StatusForbidden, gin.H{"error": "You can only modify your own cart items"})
 					return
 				}
+			} else {
+				if !verifyAnonymousCartOwnership(c, db, id) {
+					return
+				}
 			}
 
 			_, err := db.Exec("DELETE FROM cart WHERE id = $1", id)
@@ -234,6 +238,10 @@ func UpdateCartItem(db *sql.DB) gin.HandlerFunc {
 			}
 			if !ownerID.Valid || int(ownerID.Int64) != userID.(int) {
 				c.JSON(http.StatusForbidden, gin.H{"error": "You can only modify your own cart items"})
+				return
+			}
+		} else {
+			if !verifyAnonymousCartOwnership(c, db, id) {
 				return
 			}
 		}
@@ -289,6 +297,10 @@ func RemoveFromCart(db *sql.DB) gin.HandlerFunc {
 				c.JSON(http.StatusForbidden, gin.H{"error": "You can only remove your own cart items"})
 				return
 			}
+		} else {
+			if !verifyAnonymousCartOwnership(c, db, id) {
+				return
+			}
 		}
 
 		result, err := db.Exec("DELETE FROM cart WHERE id = $1", id)
@@ -305,6 +317,33 @@ func RemoveFromCart(db *sql.DB) gin.HandlerFunc {
 
 		c.JSON(http.StatusOK, gin.H{"message": "Cart item removed successfully"})
 	}
+}
+
+// verifyAnonymousCartOwnership ensures an unauthenticated request may only
+// modify a cart item that belongs to the provided session. Returns false if a
+// response has already been written.
+func verifyAnonymousCartOwnership(c *gin.Context, db *sql.DB, id int) bool {
+	var ownerID sql.NullInt64
+	var sessionID string
+	err := db.QueryRow("SELECT user_id, session_id FROM cart WHERE id = $1", id).Scan(&ownerID, &sessionID)
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Cart item not found"})
+		return false
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return false
+	}
+	if ownerID.Valid && ownerID.Int64 != 0 {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You can only modify your own cart items"})
+		return false
+	}
+	reqSessionID := c.Query("sessionId")
+	if reqSessionID == "" || reqSessionID != sessionID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You can only modify your own cart items"})
+		return false
+	}
+	return true
 }
 
 // MergeCart merges session cart to user cart upon login

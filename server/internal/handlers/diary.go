@@ -41,18 +41,25 @@ type CreateCommentRequest struct {
 	Content string `json:"content" binding:"required"`
 }
 
-// GetDiaries returns all diaries with their comments (public)
+// GetDiaries returns the caller's diaries with their comments
 func GetDiaries(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		userID, exists := c.Get("userId")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+
 		query := `
 			SELECT d.id, d.user_id, COALESCE(u.name, 'Anonymous'), d.title, d.content, d.created_at
 			FROM diaries d
 			LEFT JOIN users u ON d.user_id = u.id
+			WHERE d.user_id = $1
 			ORDER BY d.created_at DESC
 			LIMIT 100
 		`
 
-		rows, err := db.Query(query)
+		rows, err := db.Query(query, userID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
