@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
@@ -471,7 +472,28 @@ func MergeCart(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// Move all session cart items to user cart
+		// Move all session cart items to user cart atomically. The copy and
+		// consume must run inside a single transaction that locks the guest
+		// cart rows (SELECT ... FOR UPDATE) so concurrent merge requests for
+		// the same guest session serialize: the first transaction copies and
+		// deletes the guest items, and any waiting transaction then sees zero
+		// guest rows and copies/deletes nothing (no duplication, no quantity
+		// multiplication).
+		tx, err := db.BeginTx(context.Background(), nil)
+		if err != nil {
+			respondDBError(c, err)
+			return
+		}
+
+		// Lock the guest cart rows so concurrent merges block until this
+		// transaction commits.
+		_, err = tx.Exec("SELECT id FROM cart WHERE session_id = $1 AND user_id IS NULL FOR UPDATE", sessionID)
+		if err != nil {
+			tx.Rollback()
+			respondDBError(c, err)
+			return
+		}
+
 		query := `
 			INSERT INTO cart (product_id, quantity, user_id)
 			SELECT product_id, quantity, $1
@@ -479,15 +501,23 @@ func MergeCart(db *sql.DB) gin.HandlerFunc {
 			WHERE session_id = $2 AND user_id IS NULL
 			ON CONFLICT DO NOTHING
 		`
-		_, err = db.Exec(query, userID, sessionID)
+		_, err = tx.Exec(query, userID, sessionID)
 		if err != nil {
+			tx.Rollback()
 			respondDBError(c, err)
 			return
 		}
 
 		// Delete old session cart items
-		_, err = db.Exec("DELETE FROM cart WHERE session_id = $1 AND user_id IS NULL", sessionID)
+		_, err = tx.Exec("DELETE FROM cart WHERE session_id = $1 AND user_id IS NULL", sessionID)
 		if err != nil {
+			tx.Rollback()
+			respondDBError(c, err)
+			return
+		}
+
+		if err := tx.Commit(); err != nil {
+			tx.Rollback()
 			respondDBError(c, err)
 			return
 		}
