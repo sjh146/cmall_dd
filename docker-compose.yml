@@ -80,6 +80,27 @@ services:
     networks:
       - cmall_dd-network
 
+  # CI test services (docker compose run --rm, Jenkins 컨테이너에 Go/Node 없음)
+  # test-go: golang 이미지 + server 마운트 (go vet/test; cgo 불필요 실측)
+  test-go:
+    image: golang:1.21-alpine
+    working_dir: /app/server
+    volumes:
+      - ./server:/app/server
+    command: ["sh", "-c", "go vet ./... && go test ./..."]
+    networks:
+      - cmall_dd-network
+
+  # test-front: node 이미지 + 레포 마운트 (npm ci + tsc 리포트 + vite build 게이트)
+  test-front:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: ["sh", "-c", "npm ci && (npx tsc --noEmit || echo 'tsc: pre-existing product-code type errors (non-blocking, see task-2 evidence)') && npm run build"]
+    networks:
+      - cmall_dd-network
+
 networks:
   cmall_dd-network:
     driver: bridge
