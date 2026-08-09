@@ -148,6 +148,21 @@ func CreateTables(db *sql.DB) error {
 
 	log.Println("Successfully created cart table")
 
+	// Create cart_sessions table (binds anonymous cart session_id to client IP)
+	createCartSessionsTableSQL := `
+	CREATE TABLE IF NOT EXISTS cart_sessions (
+		session_id VARCHAR(255) PRIMARY KEY,
+		client_ip VARCHAR(64) NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+	`
+
+	if _, err := db.Exec(createCartSessionsTableSQL); err != nil {
+		return fmt.Errorf("failed to create cart_sessions table: %w", err)
+	}
+
+	log.Println("Successfully created cart_sessions table")
+
 	// Create diaries table (guestbook-style trading diary)
 	createDiariesTableSQL := `
 		CREATE TABLE IF NOT EXISTS diaries (

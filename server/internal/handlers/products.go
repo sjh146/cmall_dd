@@ -102,7 +102,8 @@ func CreateProduct(db *sql.DB) gin.HandlerFunc {
 		}
 
 		// Validate product type and role restrictions
-		if req.ProductType == "program" {
+		adminOnlyTypes := map[string]bool{"program": true, "code": true, "instruction": true}
+		if adminOnlyTypes[req.ProductType] {
 			userRole, _ := c.Get("userRole")
 			if userRole != "admin" {
 				c.JSON(http.StatusForbidden, gin.H{"error": "Only admins can create 'program' products"})

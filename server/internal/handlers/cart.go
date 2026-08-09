@@ -161,6 +161,15 @@ func AddToCart(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
+		if !hasUserID && req.SessionID != "" {
+			clientIP := c.ClientIP()
+			_, _ = db.Exec(`
+				INSERT INTO cart_sessions (session_id, client_ip)
+				VALUES ($1, $2)
+				ON CONFLICT (session_id) DO UPDATE SET client_ip = EXCLUDED.client_ip
+			`, req.SessionID, clientIP)
+		}
+
 		c.JSON(http.StatusCreated, item)
 	}
 }
@@ -313,6 +322,21 @@ func MergeCart(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
+		var recordedIP string
+		err := db.QueryRow("SELECT client_ip FROM cart_sessions WHERE session_id = $1", sessionID).Scan(&recordedIP)
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Session cart ownership could not be verified"})
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if recordedIP != c.ClientIP() {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Session cart does not belong to this client"})
+			return
+		}
+
 		// Move all session cart items to user cart
 		query := `
 			INSERT INTO cart (product_id, quantity, user_id)
@@ -321,7 +345,7 @@ func MergeCart(db *sql.DB) gin.HandlerFunc {
 			WHERE session_id = $2 AND user_id IS NULL
 			ON CONFLICT DO NOTHING
 		`
-		_, err := db.Exec(query, userID, sessionID)
+		_, err = db.Exec(query, userID, sessionID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
