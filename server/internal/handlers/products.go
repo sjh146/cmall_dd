@@ -26,10 +26,12 @@ func validateDownloadURL(raw string) string {
 	return ""
 }
 
-// stripSensitiveFields removes downloadUrl and licenseKey from a product so
+// sanitizePublicProduct removes downloadUrl and licenseKey from a product so
 // they are omitted from the JSON response (both fields are omitempty). It is
-// used for public (unauthenticated) product listings and details.
-func stripSensitiveFields(p *models.Product) {
+// the shared public-field scoping helper used across ALL public serialization
+// paths (product list/detail/search/cart) so sensitive fields are never
+// exposed to callers who are not the product's owner (CWE-639).
+func sanitizePublicProduct(p *models.Product) {
 	p.DownloadURL = nil
 	p.LicenseKey = nil
 }
@@ -67,7 +69,7 @@ func GetProducts(db *sql.DB) gin.HandlerFunc {
 			}
 			// Public listing: never expose downloadUrl/licenseKey to
 			// unauthenticated callers (CWE-639).
-			stripSensitiveFields(&p)
+			sanitizePublicProduct(&p)
 			products = append(products, p)
 		}
 
@@ -116,7 +118,7 @@ func GetProduct(db *sql.DB) gin.HandlerFunc {
 		isOwner := hasUserID && userID == p.SellerID
 		isAdmin := userRole == "admin"
 		if !isOwner && !isAdmin {
-			stripSensitiveFields(&p)
+			sanitizePublicProduct(&p)
 		}
 
 		c.JSON(http.StatusOK, p)
@@ -450,6 +452,9 @@ func SearchProducts(db *sql.DB) gin.HandlerFunc {
 				respondDBError(c, err)
 				return
 			}
+			// Public search endpoint: never expose downloadUrl/licenseKey to
+			// any caller (CWE-639).
+			sanitizePublicProduct(&p)
 			products = append(products, p)
 		}
 

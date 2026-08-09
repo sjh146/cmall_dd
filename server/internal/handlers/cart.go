@@ -104,6 +104,11 @@ func GetCart(db *sql.DB) gin.HandlerFunc {
 				uid := int(userIDVal.Int64)
 				item.UserID = &uid
 			}
+			// The cart is a PUBLIC context, not a legitimate download-delivery
+			// path, so sensitive fields must be stripped regardless of who owns
+			// the product — even if the seller adds their own product to their
+			// cart (CWE-639).
+			sanitizePublicProduct(&product)
 			item.Product = &product
 			cartItems = append(cartItems, item)
 		}
