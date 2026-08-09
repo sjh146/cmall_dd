@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"strings"
 
 	"cmall_dd/internal/database"
 	"cmall_dd/internal/handlers"
@@ -35,7 +36,7 @@ func main() {
 
 	// CORS configuration
 	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173"}
+	config.AllowOrigins = splitEnv(os.Getenv("CORS_ORIGINS"), []string{"http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173"})
 	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
 	config.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization"}
 	config.AllowCredentials = true
@@ -131,4 +132,20 @@ func main() {
 	if err := r.Run(":" + port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
+}
+
+func splitEnv(val string, defaults []string) []string {
+	if strings.TrimSpace(val) == "" {
+		return defaults
+	}
+	out := make([]string, 0, 8)
+	for _, p := range strings.Split(val, ",") {
+		if trimmed := strings.TrimSpace(p); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	if len(out) == 0 {
+		return defaults
+	}
+	return out
 }
