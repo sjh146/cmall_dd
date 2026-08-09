@@ -55,7 +55,7 @@ func main() {
 		// Products routes (public)
 		api.GET("/products", handlers.GetProducts(db))
 		api.GET("/products/search", handlers.SearchProducts(db))
-		api.GET("/products/:id", handlers.GetProduct(db))
+		api.GET("/products/:id", handlers.OptionalAuthMiddleware(), handlers.GetProduct(db))
 
 		// Lecture routes (public GET, protected CRUD)
 		api.GET("/lectures", handlers.GetLectures(db))

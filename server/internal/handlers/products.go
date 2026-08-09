@@ -3,12 +3,36 @@ package handlers
 import (
 	"database/sql"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
 	"cmall_dd/internal/models"
 	"github.com/gin-gonic/gin"
 )
+
+// validateDownloadURL rejects downloadUrl values whose scheme is not http or
+// https. This prevents stored XSS via javascript:/data:/vbscript: URLs that the
+// SPA later renders into an <a href>. Returns a non-empty error message when
+// the URL is invalid.
+func validateDownloadURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "downloadUrl must be a valid URL"
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return "downloadUrl must use http or https scheme"
+	}
+	return ""
+}
+
+// stripSensitiveFields removes downloadUrl and licenseKey from a product so
+// they are omitted from the JSON response (both fields are omitempty). It is
+// used for public (unauthenticated) product listings and details.
+func stripSensitiveFields(p *models.Product) {
+	p.DownloadURL = nil
+	p.LicenseKey = nil
+}
 
 // GetProducts returns all products
 func GetProducts(db *sql.DB) gin.HandlerFunc {
@@ -41,6 +65,9 @@ func GetProducts(db *sql.DB) gin.HandlerFunc {
 				respondDBError(c, err)
 				return
 			}
+			// Public listing: never expose downloadUrl/licenseKey to
+			// unauthenticated callers (CWE-639).
+			stripSensitiveFields(&p)
 			products = append(products, p)
 		}
 
@@ -82,6 +109,16 @@ func GetProduct(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
+		// Only the product's seller or an admin may see downloadUrl/licenseKey.
+		// Unauthenticated and non-owner callers get the fields stripped (CWE-639).
+		userID, hasUserID := c.Get("userId")
+		userRole, _ := c.Get("userRole")
+		isOwner := hasUserID && userID == p.SellerID
+		isAdmin := userRole == "admin"
+		if !isOwner && !isAdmin {
+			stripSensitiveFields(&p)
+		}
+
 		c.JSON(http.StatusOK, p)
 	}
 }
@@ -99,6 +136,14 @@ func CreateProduct(db *sql.DB) gin.HandlerFunc {
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
+		}
+
+		// Reject non-http(s) downloadUrl schemes to prevent stored XSS (CWE-79).
+		if req.DownloadURL != nil {
+			if msg := validateDownloadURL(*req.DownloadURL); msg != "" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": msg})
+				return
+			}
 		}
 
 		// Validate product type and role restrictions. Normalize the type
@@ -164,6 +209,14 @@ func UpdateProduct(db *sql.DB) gin.HandlerFunc {
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
+		}
+
+		// Reject non-http(s) downloadUrl schemes to prevent stored XSS (CWE-79).
+		if req.DownloadURL != nil {
+			if msg := validateDownloadURL(*req.DownloadURL); msg != "" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": msg})
+				return
+			}
 		}
 
 		// Build dynamic update query
@@ -242,6 +295,7 @@ func UpdateProduct(db *sql.DB) gin.HandlerFunc {
 		}
 
 		query += " WHERE id = $" + strconv.Itoa(argIndex) + " AND seller_id = $" + strconv.Itoa(argIndex+1)
+		query += " RETURNING id, seller_id, name, price, original_price, image, category, product_type, version, download_url, file_size, license_key, description, features, system_requirements, created_at, updated_at"
 		args = append(args, id, sellerID)
 
 		var p models.Product

@@ -14,6 +14,23 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// validSessionID reports whether sessionID is a well-formed anonymous cart
+// session identifier: non-empty, at most 64 characters, and containing only
+// alphanumeric characters plus underscore and hyphen. This bounds the value
+// before it is used in SQL lookups and prevents oversized/malformed input.
+func validSessionID(sessionID string) bool {
+	if sessionID == "" || len(sessionID) > 64 {
+		return false
+	}
+	for _, r := range sessionID {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
 func GetCart(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sessionID := c.Query("sessionId")
@@ -321,8 +338,8 @@ func RemoveFromCart(db *sql.DB) gin.HandlerFunc {
 // otherwise 403. NOTE: NAT/mobile IP changes will break anonymous carts — an
 // accepted LOW-severity tradeoff for this mitigation.
 func verifyAnonymousSessionIP(c *gin.Context, db *sql.DB, sessionID string) bool {
-	if sessionID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "sessionId is required"})
+	if !validSessionID(sessionID) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "sessionId is required and must be at most 64 characters of alphanumerics, '_', or '-'"})
 		return false
 	}
 	var recordedIP string
@@ -427,7 +444,7 @@ func verifyAnonymousCartOwnership(c *gin.Context, db *sql.DB, id int) bool {
 		return false
 	}
 	reqSessionID := c.Query("sessionId")
-	if reqSessionID == "" || reqSessionID != sessionID {
+	if !validSessionID(reqSessionID) || reqSessionID != sessionID {
 		c.JSON(http.StatusForbidden, gin.H{"error": "You can only modify your own cart items"})
 		return false
 	}
@@ -444,8 +461,8 @@ func MergeCart(db *sql.DB) gin.HandlerFunc {
 		}
 
 		sessionID := c.Query("sessionId")
-		if sessionID == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "sessionId is required"})
+		if !validSessionID(sessionID) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "sessionId is required and must be at most 64 characters of alphanumerics, '_', or '-'"})
 			return
 		}
 
