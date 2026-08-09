@@ -35,6 +35,13 @@ if [[ -z "$TOKEN" ]]; then
 fi
 
 # --- tunnel url: 인자 → 계획서 런타임 레지스트리 → 오류 ---------------------------------
+# 자동 탐지는 런타임 레지스트리의 "webhook 엔드포인트" 라인을 우선 사용한다
+# (80 터널은 nginx(제품)라 webhook 도달 불가 — 반드시 Jenkins 8080 터널이어야 함,
+#  Todo 9 실측: 잘못 등록된 80 터널 webhook #663307378 삭제).
+if [[ -z "$TUNNEL_URL" ]]; then
+  PLAN_FILE="$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.omo/plans/cmall-dd-deploy.md"
+  TUNNEL_URL="$(sed -nE 's#.*webhook 엔드포인트: `?https://([a-z0-9-]+\.trycloudflare\.com)/github-webhook/.*#https://\1#p' "$PLAN_FILE" 2>/dev/null | head -1 || true)"
+fi
 if [[ -z "$TUNNEL_URL" ]]; then
   PLAN_FILE="$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.omo/plans/cmall-dd-deploy.md"
   TUNNEL_URL="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$PLAN_FILE" 2>/dev/null | head -1 || true)"
