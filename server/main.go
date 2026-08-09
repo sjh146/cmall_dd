@@ -72,7 +72,7 @@ func main() {
 		api.GET("/cart", handlers.OptionalAuthMiddleware(), handlers.GetCart(db))
 		api.POST("/cart", handlers.OptionalAuthMiddleware(), handlers.AddToCart(db))
 		api.PUT("/cart/:id", handlers.OptionalAuthMiddleware(), handlers.UpdateCartItem(db))
-		api.DELETE("/cart/:id", handlers.RemoveFromCart(db))
+		api.DELETE("/cart/:id", handlers.OptionalAuthMiddleware(), handlers.RemoveFromCart(db))
 		api.POST("/cart/merge", handlers.OptionalAuthMiddleware(), handlers.MergeCart(db))
 
 		// Protected routes (require authentication)

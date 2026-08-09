@@ -182,6 +182,25 @@ func UpdateCartItem(db *sql.DB) gin.HandlerFunc {
 		}
 
 		if req.Quantity <= 0 {
+			// Verify ownership before deleting
+			userID, hasUserID := c.Get("userId")
+			if hasUserID {
+				var ownerID sql.NullInt64
+				err := db.QueryRow("SELECT user_id FROM cart WHERE id = $1", id).Scan(&ownerID)
+				if err == sql.ErrNoRows {
+					c.JSON(http.StatusNotFound, gin.H{"error": "Cart item not found"})
+					return
+				}
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+					return
+				}
+				if !ownerID.Valid || int(ownerID.Int64) != userID.(int) {
+					c.JSON(http.StatusForbidden, gin.H{"error": "You can only modify your own cart items"})
+					return
+				}
+			}
+
 			_, err := db.Exec("DELETE FROM cart WHERE id = $1", id)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -189,6 +208,25 @@ func UpdateCartItem(db *sql.DB) gin.HandlerFunc {
 			}
 			c.JSON(http.StatusOK, gin.H{"message": "Cart item deleted"})
 			return
+		}
+
+		// Verify ownership before updating
+		userID, hasUserID := c.Get("userId")
+		if hasUserID {
+			var ownerID sql.NullInt64
+			err := db.QueryRow("SELECT user_id FROM cart WHERE id = $1", id).Scan(&ownerID)
+			if err == sql.ErrNoRows {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Cart item not found"})
+				return
+			}
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			if !ownerID.Valid || int(ownerID.Int64) != userID.(int) {
+				c.JSON(http.StatusForbidden, gin.H{"error": "You can only modify your own cart items"})
+				return
+			}
 		}
 
 		query := `
@@ -223,6 +261,25 @@ func RemoveFromCart(db *sql.DB) gin.HandlerFunc {
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid cart item ID"})
 			return
+		}
+
+		// Verify ownership when authenticated
+		userID, hasUserID := c.Get("userId")
+		if hasUserID {
+			var ownerID sql.NullInt64
+			err := db.QueryRow("SELECT user_id FROM cart WHERE id = $1", id).Scan(&ownerID)
+			if err == sql.ErrNoRows {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Cart item not found"})
+				return
+			}
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			if !ownerID.Valid || int(ownerID.Int64) != userID.(int) {
+				c.JSON(http.StatusForbidden, gin.H{"error": "You can only remove your own cart items"})
+				return
+			}
 		}
 
 		result, err := db.Exec("DELETE FROM cart WHERE id = $1", id)

@@ -58,7 +58,7 @@ func Register(db *sql.DB) gin.HandlerFunc {
 		var existingID int
 		err := db.QueryRow("SELECT id FROM users WHERE email = $1", req.Email).Scan(&existingID)
 		if err == nil {
-			c.JSON(http.StatusConflict, gin.H{"error": "Email already registered"})
+			c.JSON(http.StatusConflict, gin.H{"error": "Registration failed"})
 			return
 		}
 
@@ -248,7 +248,23 @@ func SetUserAsAdmin(db *sql.DB) gin.HandlerFunc {
 		// Get user email from context
 		userEmail, _ := c.Get("userEmail")
 
-		_, err := db.Exec("UPDATE users SET role = 'admin' WHERE id = $1", userID)
+		// Verify the caller's actual role from the server DB, not the JWT role claim
+		var dbRole string
+		err := db.QueryRow("SELECT role FROM users WHERE id = $1", userID).Scan(&dbRole)
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify user role"})
+			return
+		}
+		if dbRole != "admin" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Only admins can promote users to admin"})
+			return
+		}
+
+		_, err = db.Exec("UPDATE users SET role = 'admin' WHERE id = $1", userID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update role"})
 			return

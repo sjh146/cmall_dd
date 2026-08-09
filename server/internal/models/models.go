@@ -66,7 +66,7 @@ type LoginRequest struct {
 // CreateProductRequest is the request body for creating a product
 type CreateProductRequest struct {
 	Name          string  `json:"name" binding:"required"`
-	Price         int     `json:"price" binding:"required"`
+	Price         int     `json:"price" binding:"required,gte=0,lte=100000000"`
 	OriginalPrice *int    `json:"originalPrice,omitempty"`
 	Image         string  `json:"image"`
 	Category      string  `json:"category"`
@@ -83,7 +83,7 @@ type CreateProductRequest struct {
 // UpdateProductRequest is the request body for updating a product
 type UpdateProductRequest struct {
 	Name          *string `json:"name,omitempty"`
-	Price         *int    `json:"price,omitempty"`
+	Price         *int    `json:"price,omitempty" binding:"omitempty,gte=0,lte=100000000"`
 	OriginalPrice *int    `json:"originalPrice,omitempty"`
 	Image         *string `json:"image,omitempty"`
 	Category      *string `json:"category,omitempty"`
