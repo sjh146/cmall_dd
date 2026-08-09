@@ -1,0 +1,17 @@
+# CI test image (docker compose run --rm --build test-go)
+# 빌드 컨텍스트로 소스를 이미지에 포함 → 런타임 볼륨 마운트 불필요.
+# docker-in-docker(Jenkins 컨테이너 CLI + 호스트 daemon)에서도 CLI가
+# 컨텍스트 tar를 스트리밍하므로 호스트 경로 해석 문제 없음 (build #3 교훈).
+FROM golang:1.21-alpine
+
+WORKDIR /app
+
+# go.mod/go.sum 먼저 복사해 레이어 캐시 활용
+COPY go.mod go.sum ./
+RUN go mod download
+
+# 소스 전체 복사
+COPY . .
+
+# 게이트: vet + test (cgo 불필요 — golang:alpine 순수 Go 테스트 실측 통과)
+CMD ["sh", "-c", "go vet ./... && go test ./..."]

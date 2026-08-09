@@ -80,24 +80,23 @@ services:
     networks:
       - cmall_dd-network
 
-  # CI test services (docker compose run --rm, Jenkins 컨테이너에 Go/Node 없음)
-  # test-go: golang 이미지 + server 마운트 (go vet/test; cgo 불필요 실측)
+  # CI test services (docker compose run --rm --build, Jenkins 컨테이너에 Go/Node 없음)
+  # 볼륨 대신 build 컨텍스트: docker-in-docker에선 Jenkins 컨테이너 CLI가 컨텍스트
+  # tar를 호스트 daemon으로 스트리밍 → daemon이 /var/jenkins_home/... 경로를
+  # 해석하지 않음 (build #3 빈 마운트 실패의 원인 회피)
+  # test-go: golang + server 컨텍스트 (go vet/test; cgo 불필요 실측)
   test-go:
-    image: golang:1.21-alpine
-    working_dir: /app/server
-    volumes:
-      - ./server:/app/server
-    command: ["sh", "-c", "go vet ./... && go test ./..."]
+    build:
+      context: ./server
+      dockerfile: Dockerfile.ci
     networks:
       - cmall_dd-network
 
-  # test-front: node 이미지 + 레포 마운트 (npm ci + tsc 리포트 + vite build 게이트)
+  # test-front: node + 레포 컨텍스트 (npm ci + tsc 리포트 + vite build 게이트)
   test-front:
-    image: node:20-alpine
-    working_dir: /app
-    volumes:
-      - ./:/app
-    command: ["sh", "-c", "npm ci && (npx tsc --noEmit || echo 'tsc: pre-existing product-code type errors (non-blocking, see task-2 evidence)') && npm run build"]
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend.ci
     networks:
       - cmall_dd-network
 

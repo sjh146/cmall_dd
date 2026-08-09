@@ -28,13 +28,14 @@ pipeline {
 
         stage('backend_smoke') {
             steps {
-                sh 'docker compose run --rm test-go'
+                // --build: 매 빌드 최신 소스로 이미지 재빌드 (컨텍스트 tar 스트리밍)
+                sh 'docker compose run --rm --build test-go'
             }
         }
 
         stage('frontend_ci') {
             steps {
-                sh 'docker compose run --rm test-front'
+                sh 'docker compose run --rm --build test-front'
             }
         }
 
