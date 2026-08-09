@@ -149,3 +149,4 @@ func splitEnv(val string, defaults []string) []string {
 	}
 	return out
 }
+// ci e2e: jenkins webhook verification
