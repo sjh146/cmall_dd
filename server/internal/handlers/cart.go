@@ -31,6 +31,9 @@ func GetCart(db *sql.DB) gin.HandlerFunc {
 			`
 			args = []interface{}{userID}
 		} else if sessionID != "" {
+			if !verifyAnonymousSessionIP(c, db, sessionID) {
+				return
+			}
 			query = `
 				SELECT c.id, c.product_id, c.quantity, COALESCE(c.session_id, ''), COALESCE(c.user_id, 0), c.created_at, c.updated_at,
 				       p.id, p.seller_id, p.name, p.price, p.original_price, p.image, p.category, p.product_type,
@@ -95,8 +98,12 @@ func AddToCart(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		if req.Quantity == 0 {
-			req.Quantity = 1
+		// Reject non-positive quantities. req.Quantity is an int, so JSON
+		// floats/non-integers already fail binding (400); only the < 1 guard is
+		// needed here.
+		if req.Quantity < 1 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "quantity must be at least 1"})
+			return
 		}
 
 		userID, hasUserID := c.Get("userId")
@@ -110,6 +117,9 @@ func AddToCart(db *sql.DB) gin.HandlerFunc {
 			query = "SELECT id FROM cart WHERE product_id = $1 AND user_id = $2"
 			args = []interface{}{req.ProductID, userID}
 		} else {
+			if !verifyAnonymousSessionIP(c, db, req.SessionID) {
+				return
+			}
 			query = "SELECT id FROM cart WHERE product_id = $1 AND session_id = $2 AND user_id IS NULL"
 			args = []interface{}{req.ProductID, req.SessionID}
 		}
@@ -161,15 +171,6 @@ func AddToCart(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		if !hasUserID && req.SessionID != "" {
-			clientIP := c.ClientIP()
-			_, _ = db.Exec(`
-				INSERT INTO cart_sessions (session_id, client_ip)
-				VALUES ($1, $2)
-				ON CONFLICT (session_id) DO UPDATE SET client_ip = EXCLUDED.client_ip
-			`, req.SessionID, clientIP)
-		}
-
 		c.JSON(http.StatusCreated, item)
 	}
 }
@@ -190,36 +191,12 @@ func UpdateCartItem(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		if req.Quantity <= 0 {
-			// Verify ownership before deleting
-			userID, hasUserID := c.Get("userId")
-			if hasUserID {
-				var ownerID sql.NullInt64
-				err := db.QueryRow("SELECT user_id FROM cart WHERE id = $1", id).Scan(&ownerID)
-				if err == sql.ErrNoRows {
-					c.JSON(http.StatusNotFound, gin.H{"error": "Cart item not found"})
-					return
-				}
-				if err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-					return
-				}
-				if !ownerID.Valid || int(ownerID.Int64) != userID.(int) {
-					c.JSON(http.StatusForbidden, gin.H{"error": "You can only modify your own cart items"})
-					return
-				}
-			} else {
-				if !verifyAnonymousCartOwnership(c, db, id) {
-					return
-				}
-			}
-
-			_, err := db.Exec("DELETE FROM cart WHERE id = $1", id)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-				return
-			}
-			c.JSON(http.StatusOK, gin.H{"message": "Cart item deleted"})
+		// Reject non-positive quantities instead of deleting the item. The
+		// ownership verification that previously lived in the delete branch is
+		// already duplicated in the update path below, so no ownership checks
+		// are lost by removing it.
+		if req.Quantity < 1 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "quantity must be at least 1"})
 			return
 		}
 
@@ -241,6 +218,9 @@ func UpdateCartItem(db *sql.DB) gin.HandlerFunc {
 				return
 			}
 		} else {
+			if !verifyAnonymousSessionIP(c, db, c.Query("sessionId")) {
+				return
+			}
 			if !verifyAnonymousCartOwnership(c, db, id) {
 				return
 			}
@@ -298,6 +278,9 @@ func RemoveFromCart(db *sql.DB) gin.HandlerFunc {
 				return
 			}
 		} else {
+			if !verifyAnonymousSessionIP(c, db, c.Query("sessionId")) {
+				return
+			}
 			if !verifyAnonymousCartOwnership(c, db, id) {
 				return
 			}
@@ -317,6 +300,38 @@ func RemoveFromCart(db *sql.DB) gin.HandlerFunc {
 
 		c.JSON(http.StatusOK, gin.H{"message": "Cart item removed successfully"})
 	}
+}
+
+// verifyAnonymousSessionIP ensures an unauthenticated request's sessionId is
+// bound to the caller's IP. On first access (no record) it upserts the current
+// IP and allows. On subsequent access the recorded IP must match c.ClientIP(),
+// otherwise 403. NOTE: NAT/mobile IP changes will break anonymous carts — an
+// accepted LOW-severity tradeoff for this mitigation.
+func verifyAnonymousSessionIP(c *gin.Context, db *sql.DB, sessionID string) bool {
+	if sessionID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "sessionId is required"})
+		return false
+	}
+	var recordedIP string
+	err := db.QueryRow("SELECT client_ip FROM cart_sessions WHERE session_id = $1", sessionID).Scan(&recordedIP)
+	if err == sql.ErrNoRows {
+		// First access: record the caller's IP and allow.
+		_, _ = db.Exec(`
+			INSERT INTO cart_sessions (session_id, client_ip)
+			VALUES ($1, $2)
+			ON CONFLICT (session_id) DO UPDATE SET client_ip = EXCLUDED.client_ip
+		`, sessionID, c.ClientIP())
+		return true
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return false
+	}
+	if recordedIP != c.ClientIP() {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Session cart does not belong to this client"})
+		return false
+	}
+	return true
 }
 
 // verifyAnonymousCartOwnership ensures an unauthenticated request may only

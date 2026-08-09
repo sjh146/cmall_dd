@@ -305,11 +305,24 @@ func CreateComment(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// Check if diary exists
-		var diaryExists int
-		err := db.QueryRow("SELECT 1 FROM diaries WHERE id = $1", req.DiaryID).Scan(&diaryExists)
+		// Check ownership: load the diary's owner along with existence.
+		// NOTE: The diaries table has NO is_public column — all diaries are
+		// private (only visible to their owner via GetDiaries, which filters
+		// WHERE d.user_id = $1). Therefore ownership is the sole gate: only the
+		// diary owner may comment on it.
+		var ownerID int
+		err := db.QueryRow("SELECT user_id FROM diaries WHERE id = $1", req.DiaryID).Scan(&ownerID)
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Diary not found"})
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		if ownerID != userID.(int) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "You can only comment on your own diaries"})
 			return
 		}
 
