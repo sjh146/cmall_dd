@@ -19,6 +19,10 @@ pipeline {
         stage('checkout') {
             steps {
                 checkout scm
+                // Jenkins 워크스페이스엔 루트 .env(실 시크릿)가 없음. compose(v2)
+                // 가 프로젝트 전체 env_file을 해석하므로 CI 전용 dummy .env 생성
+                // (backend/postgres env_file 충족용; test 서비스는 무관).
+                sh 'printf "DB_PASSWORD=ci_noop\\nPOSTGRES_PASSWORD=ci_noop\\nJWT_SECRET=ci_noop\\n" > .env'
             }
         }
 
@@ -51,7 +55,9 @@ pipeline {
     post {
         always {
             sh 'docker compose down --remove-orphans || true'
-            cleanWs()
+            // ws-cleanup 플러그인 미설치 → cleanWs() 사용 불가. deleteDir()은
+            // 내장 step이라 사용 가능 (워크스페이스 콘텐츠만 정리).
+            deleteDir()
         }
     }
 }
