@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"time"
 
 	"cmall_dd/internal/models"
 	"github.com/gin-gonic/gin"
@@ -15,34 +14,22 @@ import (
 
 // JWT Claims
 type Claims struct {
-	UserID int    `json:"userId"`
-	Email  string `json:"email"`
-	Role   string `json:"role"`
+	UserID        int    `json:"userId"`
+	Email         string `json:"email"`
+	Role          string `json:"role"`
+	WalletAddress string `json:"walletAddress,omitempty"`
 	jwt.RegisteredClaims
 }
 
 // Generate JWT token
 func generateToken(user models.User) (string, error) {
-	secretKey := os.Getenv("JWT_SECRET")
-	if secretKey == "" {
-		secretKey = "cmall_dd_secret_key_change_in_production"
-	}
-
-	expirationTime := time.Now().Add(24 * 7 * time.Hour) // 7 days
-
 	claims := &Claims{
 		UserID: user.ID,
 		Email:  user.Email,
 		Role:   user.Role,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(expirationTime),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			Issuer:    "cmall_dd",
-		},
+		RegisteredClaims: jwtRegisteredClaims(),
 	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(secretKey))
+	return signClaims(claims)
 }
 
 // Register creates a new user account

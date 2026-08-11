@@ -50,6 +50,9 @@ func main() {
 		{
 			auth.POST("/register", handlers.Register(db))
 			auth.POST("/login", handlers.Login(db))
+			// 지갑 인증 (M3 — ZK Smart Wallet 흐름의 Web2 진입점)
+			auth.POST("/nonce", handlers.WalletNonce(db))
+			auth.POST("/verify", handlers.WalletVerify(db))
 		}
 
 		// Products routes (public)
@@ -108,7 +111,17 @@ func main() {
 
 			// Admin: Set user as admin (for testing)
 			protected.POST("/admin/set-admin", handlers.SetUserAsAdmin(db))
+
+			// ── 결제 플랫폼 (M3 — 지갑/USDC 결제 + 분석) ──
+			protected.POST("/wallet/connect", handlers.WalletConnect(db))
+			protected.POST("/payments/create", handlers.CreatePayment(db))
+			protected.GET("/payments/:referenceId", handlers.GetPayment(db))
+			protected.POST("/analysis", handlers.CreateAnalysis(db))
+			protected.GET("/analysis/:requestId", handlers.GetAnalysis(db))
 		}
+
+		// AI 에이전트 상품 목록 (public)
+		api.GET("/agents", handlers.GetAgents(db))
 
 		// OpenClaw browser automation routes
 		openclawBaseURL := os.Getenv("OPENCLAW_BASE_URL")

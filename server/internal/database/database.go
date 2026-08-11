@@ -254,5 +254,123 @@ func CreateTables(db *sql.DB) error {
 	}
 	log.Println("Successfully created notices table")
 
+	// ── 결제 플랫폼 스키마 (M3: ZK 지갑/USDC 결제) ─────────────────────────
+
+	// products에 USDC 결제가 컬럼 추가 (기존 price=KRW와 분리 — 단위 혼동 방지)
+	alterProductsUSDC := `
+	ALTER TABLE products ADD COLUMN IF NOT EXISTS crypto_price_usdc BIGINT NOT NULL DEFAULT 0;
+	`
+	if _, err := db.Exec(alterProductsUSDC); err != nil {
+		return fmt.Errorf("failed to add crypto_price_usdc to products: %w", err)
+	}
+
+	// 지갑 (시크릿 무영속: 주소/credential_id/검증결과만 저장)
+	createWalletsTableSQL := `
+	CREATE TABLE IF NOT EXISTS wallets (
+		id SERIAL PRIMARY KEY,
+		user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+		wallet_address VARCHAR(42) UNIQUE NOT NULL,
+		credential_id VARCHAR(255),
+		verification_result TEXT,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_wallets_user_id ON wallets(user_id);
+	CREATE INDEX IF NOT EXISTS idx_wallets_wallet_address ON wallets(wallet_address);
+	`
+	if _, err := db.Exec(createWalletsTableSQL); err != nil {
+		return fmt.Errorf("failed to create wallets table: %w", err)
+	}
+	log.Println("Successfully created wallets table")
+
+	// 인증 챌린지 (nonce — single-use, TTL)
+	createAuthChallengesTableSQL := `
+	CREATE TABLE IF NOT EXISTS auth_challenges (
+		id SERIAL PRIMARY KEY,
+		wallet_address VARCHAR(42) NOT NULL,
+		nonce VARCHAR(128) UNIQUE NOT NULL,
+		challenge_type VARCHAR(32) NOT NULL DEFAULT 'login',
+		expires_at TIMESTAMP NOT NULL,
+		used_at TIMESTAMP,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_auth_challenges_nonce ON auth_challenges(nonce);
+	CREATE INDEX IF NOT EXISTS idx_auth_challenges_wallet ON auth_challenges(wallet_address);
+	`
+	if _, err := db.Exec(createAuthChallengesTableSQL); err != nil {
+		return fmt.Errorf("failed to create auth_challenges table: %w", err)
+	}
+	log.Println("Successfully created auth_challenges table")
+
+	// 결제 레코드 (amount_usdc = USDC 마이크로 단위, 6자리)
+	createPaymentsTableSQL := `
+	CREATE TABLE IF NOT EXISTS payments (
+		id SERIAL PRIMARY KEY,
+		user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+		order_id INTEGER REFERENCES products(id),
+		reference_id VARCHAR(128) UNIQUE NOT NULL,
+		wallet_address VARCHAR(42) NOT NULL,
+		amount_usdc BIGINT NOT NULL,
+		status VARCHAR(32) NOT NULL DEFAULT 'pending',
+		tx_hash VARCHAR(66),
+		chain_id INTEGER NOT NULL DEFAULT 84532,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id);
+	CREATE INDEX IF NOT EXISTS idx_payments_reference_id ON payments(reference_id);
+	CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
+	`
+	if _, err := db.Exec(createPaymentsTableSQL); err != nil {
+		return fmt.Errorf("failed to create payments table: %w", err)
+	}
+	log.Println("Successfully created payments table")
+
+	// 구독
+	createSubscriptionsTableSQL := `
+	CREATE TABLE IF NOT EXISTS subscriptions (
+		id SERIAL PRIMARY KEY,
+		user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+		plan VARCHAR(64) NOT NULL,
+		status VARCHAR(32) NOT NULL DEFAULT 'active',
+		expires_at TIMESTAMP,
+		tx_hash VARCHAR(66),
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id);
+	`
+	if _, err := db.Exec(createSubscriptionsTableSQL); err != nil {
+		return fmt.Errorf("failed to create subscriptions table: %w", err)
+	}
+	log.Println("Successfully created subscriptions table")
+
+	// 분석 요청
+	createAnalysisRequestsTableSQL := `
+	CREATE TABLE IF NOT EXISTS analysis_requests (
+		id SERIAL PRIMARY KEY,
+		user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+		request_type VARCHAR(64) NOT NULL,
+		symbol VARCHAR(32) NOT NULL,
+		status VARCHAR(32) NOT NULL DEFAULT 'queued',
+		result_json TEXT,
+		internal_request_id VARCHAR(128),
+		error TEXT,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_analysis_requests_user_id ON analysis_requests(user_id);
+	CREATE INDEX IF NOT EXISTS idx_analysis_requests_status ON analysis_requests(status);
+	`
+	if _, err := db.Exec(createAnalysisRequestsTableSQL); err != nil {
+		return fmt.Errorf("failed to create analysis_requests table: %w", err)
+	}
+	log.Println("Successfully created analysis_requests table")
+
 	return nil
 }

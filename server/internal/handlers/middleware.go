@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -28,15 +27,11 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		tokenString := parts[1]
-		secretKey := os.Getenv("JWT_SECRET")
-		if secretKey == "" {
-			secretKey = "cmall_dd_secret_key_change_in_production"
-		}
 
 		// Parse and validate token
 		claims := &Claims{}
 		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-			return []byte(secretKey), nil
+			return jwtSecret(), nil
 		})
 
 		if err != nil || !token.Valid {
@@ -49,6 +44,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		c.Set("userId", claims.UserID)
 		c.Set("userEmail", claims.Email)
 		c.Set("userRole", claims.Role)
+		c.Set("walletAddress", claims.WalletAddress)
 
 		c.Next()
 	}
@@ -70,20 +66,17 @@ func OptionalAuthMiddleware() gin.HandlerFunc {
 		}
 
 		tokenString := parts[1]
-		secretKey := os.Getenv("JWT_SECRET")
-		if secretKey == "" {
-			secretKey = "cmall_dd_secret_key_change_in_production"
-		}
 
 		claims := &Claims{}
 		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-			return []byte(secretKey), nil
+			return jwtSecret(), nil
 		})
 
 		if err == nil && token.Valid {
 			c.Set("userId", claims.UserID)
 			c.Set("userEmail", claims.Email)
 			c.Set("userRole", claims.Role)
+			c.Set("walletAddress", claims.WalletAddress)
 		}
 
 		c.Next()

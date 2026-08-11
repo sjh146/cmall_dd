@@ -172,3 +172,106 @@ type UpdateNoticeRequest struct {
 	Content     *string `json:"content,omitempty"`
 	IsPublished *bool   `json:"isPublished,omitempty"`
 }
+
+// ── 결제 플랫폼 모델 (M3: ZK 지갑/USDC 결제) ──────────────────────────────
+
+// Wallet — 시크릿 무영속: 주소/credential_id/검증결과만 저장
+type Wallet struct {
+	ID                 int       `json:"id"`
+	UserID             int       `json:"userId"`
+	WalletAddress      string    `json:"walletAddress"`
+	CredentialID       string    `json:"credentialId,omitempty"`
+	VerificationResult string    `json:"verificationResult,omitempty"`
+	CreatedAt          time.Time `json:"createdAt"`
+	UpdatedAt          time.Time `json:"updatedAt"`
+}
+
+// AuthChallenge — nonce 챌린지 (single-use, TTL)
+type AuthChallenge struct {
+	ID            int        `json:"id"`
+	WalletAddress string     `json:"walletAddress"`
+	Nonce         string     `json:"nonce"`
+	ChallengeType string     `json:"challengeType"`
+	ExpiresAt     time.Time  `json:"expiresAt"`
+	UsedAt        *time.Time `json:"usedAt,omitempty"`
+	CreatedAt     time.Time  `json:"createdAt"`
+}
+
+// Payment — USDC 결제 레코드 (amount_usdc = 마이크로 단위, 6자리)
+type Payment struct {
+	ID            int       `json:"id"`
+	UserID        int       `json:"userId"`
+	OrderID       int       `json:"orderId"`
+	ReferenceID   string    `json:"referenceId"`
+	WalletAddress string    `json:"walletAddress"`
+	AmountUsdc    int64     `json:"amountUsdc"`
+	Status        string    `json:"status"` // pending | paid | failed
+	TxHash        string    `json:"txHash,omitempty"`
+	ChainID       int       `json:"chainId"`
+	CreatedAt     time.Time `json:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt"`
+}
+
+// Subscription — 구독
+type Subscription struct {
+	ID        int        `json:"id"`
+	UserID    int        `json:"userId"`
+	Plan      string     `json:"plan"`
+	Status    string     `json:"status"`
+	ExpiresAt *time.Time `json:"expiresAt,omitempty"`
+	TxHash    string     `json:"txHash,omitempty"`
+	CreatedAt time.Time  `json:"createdAt"`
+}
+
+// AnalysisRequest — 분석 요청
+type AnalysisRequest struct {
+	ID                int       `json:"id"`
+	UserID            int       `json:"userId"`
+	RequestType       string    `json:"requestType"`
+	Symbol            string    `json:"symbol"`
+	Status            string    `json:"status"` // queued | running | done | failed
+	ResultJSON        string    `json:"resultJson,omitempty"`
+	InternalRequestID string    `json:"internalRequestId,omitempty"`
+	Error             string    `json:"error,omitempty"`
+	CreatedAt         time.Time `json:"createdAt"`
+	UpdatedAt         time.Time `json:"updatedAt"`
+}
+
+// ── 요청/응답 타입 ───────────────────────────────────────────────────────
+
+type NonceRequest struct {
+	WalletAddress string `json:"walletAddress" binding:"required"`
+}
+
+type NonceResponse struct {
+	Nonce     string `json:"nonce"`
+	Message   string `json:"message"`
+	ExpiresIn int    `json:"expiresIn"`
+}
+
+type VerifyRequest struct {
+	WalletAddress string `json:"walletAddress" binding:"required"`
+	Signature     string `json:"signature" binding:"required"`
+	Nonce         string `json:"nonce" binding:"required"`
+}
+
+type WalletAuthResponse struct {
+	Token         string `json:"token"`
+	WalletAddress string `json:"walletAddress"`
+	User          User   `json:"user"`
+}
+
+type CreatePaymentRequest struct {
+	ProductID int `json:"productId" binding:"required"`
+}
+
+type PaymentResponse struct {
+	Payment
+	ContractAddress string `json:"contractAddress,omitempty"`
+	TokenAddress    string `json:"tokenAddress,omitempty"`
+}
+
+type CreateAnalysisRequest struct {
+	Symbol      string `json:"symbol" binding:"required"`
+	RequestType string `json:"requestType" binding:"required"`
+}
