@@ -16,7 +16,7 @@ import WalletModal from '../components/WalletModal';
  * AgentsPage — AI 분석 에이전트 상품 목록 + USDC 결제 + 분석 요청 (M3)
  * 결제 흐름(dev-mock): 결제 생성 → 게이트웨이 검증(즉시) → paid → 분석 요청
  */
-export default function AgentsPage({ devMode = false }: { devMode?: boolean }) {
+export default function AgentsPage({ devMode = true }: { devMode?: boolean }) {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selected, setSelected] = useState<Agent | null>(null);
   const [payment, setPayment] = useState<Payment | null>(null);
