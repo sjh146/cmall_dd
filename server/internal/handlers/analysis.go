@@ -94,7 +94,7 @@ func CreateAnalysis(db *sql.DB) gin.HandlerFunc {
 		err := db.QueryRow(`
 			INSERT INTO analysis_requests (user_id, request_type, symbol, status)
 			VALUES ($1, $2, $3, 'queued')
-			RETURNING id, user_id, request_type, symbol, status, result_json, internal_request_id, error, created_at, updated_at
+			RETURNING id, user_id, request_type, symbol, status, COALESCE(result_json, '') AS result_json, COALESCE(internal_request_id, '') AS internal_request_id, COALESCE(error, '') AS error, created_at, updated_at
 		`, userID, req.RequestType, req.Symbol).Scan(
 			&reqRec.ID, &reqRec.UserID, &reqRec.RequestType, &reqRec.Symbol, &reqRec.Status,
 			&reqRec.ResultJSON, &reqRec.InternalRequestID, &reqRec.Error,
@@ -143,7 +143,7 @@ func GetAnalysis(db *sql.DB) gin.HandlerFunc {
 
 		var rec models.AnalysisRequest
 		err := db.QueryRow(`
-			SELECT id, user_id, request_type, symbol, status, result_json, internal_request_id, error, created_at, updated_at
+			SELECT id, user_id, request_type, symbol, status, COALESCE(result_json, '') AS result_json, COALESCE(internal_request_id, '') AS internal_request_id, COALESCE(error, '') AS error, created_at, updated_at
 			FROM analysis_requests WHERE id = $1
 		`, requestID).Scan(
 			&rec.ID, &rec.UserID, &rec.RequestType, &rec.Symbol, &rec.Status,

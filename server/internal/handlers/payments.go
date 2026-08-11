@@ -121,7 +121,7 @@ func CreatePayment(db *sql.DB) gin.HandlerFunc {
 		err = db.QueryRow(`
 			INSERT INTO payments (user_id, order_id, reference_id, wallet_address, amount_usdc, status, chain_id)
 			VALUES ($1, $2, $3, $4, $5, 'pending', $6)
-			RETURNING id, user_id, order_id, reference_id, wallet_address, amount_usdc, status, tx_hash, chain_id, created_at, updated_at
+			RETURNING id, user_id, order_id, reference_id, wallet_address, amount_usdc, status, COALESCE(tx_hash, '') AS tx_hash, chain_id, created_at, updated_at
 		`, userID, req.ProductID, referenceID, strings.ToLower(wallet), cryptoPrice, chainID).Scan(
 			&payment.ID, &payment.UserID, &payment.OrderID, &payment.ReferenceID, &payment.WalletAddress,
 			&payment.AmountUsdc, &payment.Status, &payment.TxHash, &payment.ChainID,
@@ -149,7 +149,7 @@ func GetPayment(db *sql.DB) gin.HandlerFunc {
 
 		var payment models.Payment
 		err := db.QueryRow(`
-			SELECT id, user_id, order_id, reference_id, wallet_address, amount_usdc, status, tx_hash, chain_id, created_at, updated_at
+			SELECT id, user_id, order_id, reference_id, wallet_address, amount_usdc, status, COALESCE(tx_hash, '') AS tx_hash, chain_id, created_at, updated_at
 			FROM payments WHERE reference_id = $1
 		`, referenceID).Scan(
 			&payment.ID, &payment.UserID, &payment.OrderID, &payment.ReferenceID, &payment.WalletAddress,
