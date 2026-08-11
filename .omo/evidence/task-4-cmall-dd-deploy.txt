@@ -1,0 +1,24 @@
+TASK 4 EVIDENCE — cmall-dd-deploy (cloudflared 두 번째 터널 80 + 공개 URL 헬스)
+Date: 2026-08-09
+Plan: .omo/plans/cmall-dd-deploy.md (v2)
+
+== What was done ==
+(a) Existing 8080 tunnel preserved (pid 444117/444138, log /tmp/cf-tunnel.log) — untouched.
+(b) Started second cloudflared process: `nohup /home/dduckbeagy/.local/bin/cloudflared tunnel --url http://localhost:80 > /tmp/cf-tunnel-80.log 2>&1 &` (pid 727163).
+(c) URL harvested from /tmp/cf-tunnel-80.log: https://dispatch-dir-boxes-mas.trycloudflare.com — recorded in plan "Runtime registry" section (not committed).
+(d) Public health checks passed.
+
+== Acceptance criteria results ==
+[A1] curl -w %{http_code} https://dispatch-dir-boxes-mas.trycloudflare.com/                  -> 200  PASS
+[A2] curl -w %{http_code} https://dispatch-dir-boxes-mas.trycloudflare.com/api/v1/products    -> 200  PASS
+[A3] pgrep -af "tunnel --url http://localhost:80" -> process 727163 detected (8080 tunnel pid 444138 also present, coexisting)  PASS
+
+== QA scenarios ==
+[happy] public URL 200, two tunnels coexist (8080 + 80), no interference  PASS
+[failure] n/a — first attempt succeeded; tunnel URL change risk documented (quick tunnel) + mitigated by re-register script (Todo 7) + SCMTrigger poll safety net (Todo 6 config)
+
+== Guardrails ==
+- 8080 tunnel NOT terminated (verified via pgrep)
+- No secrets in tunnel log/URL (checked /tmp/cf-tunnel-80.log content: only cloudflared bootstrap lines + URL)
+- Named tunnel NOT attempted (out of scope)
+- Commit: N (tunnel process/URL not committed; only plan registry updated)

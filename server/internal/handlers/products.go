@@ -252,8 +252,17 @@ func UpdateProduct(db *sql.DB) gin.HandlerFunc {
 			argIndex++
 		}
 		if req.ProductType != nil {
-			if *req.ProductType != "program" && *req.ProductType != "diary" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Product type must be 'program' or 'diary'"})
+			// admin-only 타입은 관리자만 설정 가능 (CWE-862 — CreateProduct와 동일 정책)
+			normalizedType := strings.ToLower(strings.TrimSpace(*req.ProductType))
+			adminOnlyTypes := map[string]bool{"program": true, "code": true, "instruction": true}
+			if adminOnlyTypes[normalizedType] {
+				userRole, _ := c.Get("userRole")
+				if userRole != "admin" {
+					c.JSON(http.StatusForbidden, gin.H{"error": "Only admins can set this product type"})
+					return
+				}
+			} else if normalizedType != "diary" && normalizedType != "ebook" && normalizedType != "software" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Product type must be 'program', 'diary', 'ebook' or 'software'"})
 				return
 			}
 			query += ", product_type = $" + strconv.Itoa(argIndex)

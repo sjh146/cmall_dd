@@ -1,0 +1,36 @@
+TASK 5 EVIDENCE — cmall-dd-deploy (루트 Jenkinsfile + compose test-go/test-front 서비스)
+Date: 2026-08-09
+Plan: .omo/plans/cmall-dd-deploy.md (v2)
+
+== What was done ==
+(a) 루트 `Jenkinsfile` 신규(declarative) — stages: checkout(`checkout scm`) / backend_smoke(`docker compose run --rm test-go`) / frontend_ci(`docker compose run --rm test-front`) / compose_smoke(`docker compose config -q`) / report(archiveArtifacts `reports/**` + `.omo/evidence/**`, allowEmptyArchive). `options { disableConcurrentBuilds(); skipDefaultCheckout() }`. `post { always { docker compose down --remove-orphans || true; cleanWs() } }`.
+(b) Jenkins 컨테이너(Debian 13) docker CLI 26.1.5 + docker.sock 마운트 확인 — 그러나 compose 플러그인/독립 바이너리 無. 판매용 selling_dd의 `docker compose run` 패턴은 실제 job이 없어 실행된 적 없음(미검증 코드 경로).
+   - 비파괴 해결: docker compose v2.29.7(linux-x86_64)를 jenkins_home 볼륨 `/home/dduckbeagy/jenkins/jenkins_home/.docker/cli-plugins/docker-compose`(chmod 755)에 배치 → 컨테이너 재시작에도 유지. Jenkins 컨테이너 자체 파일은 변경 안 함.
+   - 검증: Jenkins 컨테이너 내부 `jenkins` 사용자로 `docker compose version` → "Docker Compose version v2.29.7".
+(c) Jenkins 플러그인 점검: github/git/workflow-cps/workflow-job/pipeline-model-definition/plain-credentials/credentials 설치됨. junit/timestamper 미설치 → Jenkinsfile에서 사용 회피(플러그인 설치=재시작 리스크로 기존 infra 위험). report stage는 archiveArtifacts만 사용.
+(d) `docker-compose.yml`에 CI 서비스 2개 추가:
+   - test-go: image golang:1.21-alpine, working_dir /app/server, volumes ["./server:/app/server"], command sh -c "go vet ./... && go test ./..."  (빌드 툴체인 이미지 — G5 준수)
+   - test-front: image node:20-alpine, working_dir /app, volumes ["./:/app"], command sh -c "npm ci && (npx tsc --noEmit || echo 'tsc: pre-existing product-code type errors (non-blocking, see task-2 evidence)') && npm run build"
+   - 두 서비스 모두 `environment`에 CI용 no-op 값: DB_PASSWORD/POSTGRES_PASSWORD/JWT_SECRET=ci_noop (Jenkins 워크스페이스에는 .env가 없으므로 compose `${VAR:?}` 필수변수 충족용). 실제 prod 시크릿 아님.
+(e) Jenkinsfile에 `COMPOSE_PROJECT_NAME=cmall_dd_ci` 환경변수 → 로컬 실행 중인 `cmall_dd` 프로젝트 컨테이너와 충돌 방지.
+(f) go test 툴체인 실증: golang:1.21-alpine에서 `go test ./...` cgo 불필요 확인(전 6 패키지, 테스트 파일 없음 — Dockerfile의 CGO_ENABLED=1 빌드와 무관하게 테스트는 gcc 없이 통과).
+
+== Acceptance criteria results ==
+[A1] `docker compose config`에 test-go/test-front 서비스 존재  ->  PASS
+[A2] `bash -n Jenkinsfile`  ->  N/A (Groovy 문법 — bash -n은 유효하지 않은 검증; 실제 검증은 Todo 6/8 Jenkins job 실행으로 대체, 계획서 기재 방식)
+[A3] `docker compose run --rm test-go`  ->  PASS (go vet ./... + go test ./... — 6개 패키지, 테스트 파일 0)
+[A4] test-front 샌드박스 실행(/tmp/cmall_test_front에 rsync — 호스트 node_modules 오염 방지)  ->  PASS (npm ci 정상 / tsc --noEmit: 기존 제품코드 4건 에러(MyProducts.tsx TS2367 ×3, SellerDashboard.tsx TS2322) → echo fallback / npm run build: vite 1726 modules, 9.81s, EXIT=0)
+
+== QA scenarios ==
+[happy] compose config 파싱 OK + test-go 그린 + test-front 그린 + 로컬 스택(80/3000/8081/5433) 무영향  PASS
+[failure] n/a — 런타임 alpine 재사용으로 go test 실패 경로는 이미 설계 단계에서 배제(G5), junit/timestamper 부재는 archiveArtifacts로 우회
+
+== Guardrails ==
+- G5 준수: test-go는 golang:1.21-alpine(툴체인 보유), backend 런타임 이미지 미사용
+- Jenkins 컨테이너 파일 수정 없음 — compose 바이너리는 jenkins_home 볼륨(영속)에만 배치
+- 플러그인 설치(재시작) 회피 — 기존 Jenkins infra 비파괴
+- 실 시크릿 없음: CI env는 ci_noop 더미, 로그/커밋에 평문 시크릿 미노출
+- 호스트 .env/node_modules 미커밋 (git status: .env untracked 유지)
+- Commit: Y | ci(Jenkins): 루트 Jenkinsfile + compose test-go(golang)/test-front(node) 서비스
+
+(End of file)

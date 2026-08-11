@@ -1,0 +1,36 @@
+TASK 2 EVIDENCE — cmall-dd-deploy (프론트 타입체크 기반 + CORS env 반영)
+Date: 2026-08-09
+Plan: .omo/plans/cmall-dd-deploy.md (v2)
+
+== What was done ==
+(a) Root tsconfig.json created (did not exist): target/module ESNext, moduleResolution bundler, jsx react-jsx, strict, skipLibCheck, esModuleInterop, resolveJsonModule, allowImportingTsExtensions, noEmit, types:["vite/client","node"], paths {"@/*":["src/*"], + 38 versioned-alias mirrors}. The 38 versioned mirrors (e.g. "lucide-react@0.487.0" -> "./node_modules/lucide-react") were parsed programmatically from vite.config.ts aliases — shadcn/ui components import version-scoped specifiers that only Vite's alias map resolves; tsc needs the same map.
+(b) npm i -D typescript@7.0.2 (devDep added). Additionally installed @types/react@19.2.18 + @types/react-dom@19.2.4 — without them tsc produced 1524 "cannot find declaration" errors (react/react-dom shipped no types; only @types/node existed). Config-level devDeps, no product code touched.
+(c) server/main.go: AllowOrigins now `splitEnv(os.Getenv("CORS_ORIGINS"), [localhost:3000, localhost:5173, 127.0.0.1:5173])`; added splitEnv helper (strings import). No handler/product logic changed.
+
+== tsc --noEmit journey ==
+- Baseline (no tsconfig, no types): N/A (no gate existed)
+- After tsconfig + typescript: 1524 errors (missing @types/react etc.)
+- After @types/react + @types/react-dom: 90 errors (67x TS2307 versioned-module unresolved, 11x TS7006, others)
+- After versioned-alias paths + vite/client types: 5 errors
+- Final: 4 errors, ALL in product code (forbidden to modify):
+  src/pages/MyProducts.tsx(146/157/161) TS2367: productType '"diary"|"instruction"|"program"' vs '"software"' no overlap
+  src/pages/SellerDashboard.tsx(145) TS2322: '"code"|"program"' not assignable to '"program"'
+  => reported only (plan: "기존 코드 기준 에러는 리포트만"); CI gate falls back to `npm run build` (plan QA fallback). Vite build (esbuild, no typecheck) passes independently.
+
+== Environment risk check ==
+- typescript@7.0.2 ships static Go binary via @typescript/typescript-linux-x64 (musl-compatible). Verified: `docker run node:20-alpine` with node_modules mounted -> `tsc --version` = 7.0.2, EXIT=0. Dockerfile.frontend (node:18-alpine) / test-front (node:20-alpine) safe.
+
+== Acceptance criteria results ==
+[A1] test -f tsconfig.json -> EXISTS                                    PASS
+[A2] grep '"typescript"' package.json -> "typescript": "^7.0.2" (devDeps)  PASS
+[A3] grep "CORS_ORIGINS" server/main.go -> present (splitEnv fallback)    PASS
+[A4] git sts -> package.json / package-lock.json / tsconfig.json / server/main.go changed only (no product source)  PASS
+
+== QA scenarios ==
+[happy] npx tsc --noEmit runs against valid tsconfig; only 4 pre-existing product-code errors reported (non-blocking)  PASS
+[failure->fixed] moduleResolution/JSX errors (TS5090 paths) fixed by "./" prefix; TS2307 (67) fixed by versioned-alias path mirror; import.meta.env/css errors fixed by vite/client types  PASS
+[failure] CORS env unset -> splitEnv returns defaults (unit-inspected: empty val -> defaults)  PASS (runtime verified in Todo 3 Docker logs)
+
+== Guardrails ==
+- No product source files modified (only tsconfig.json, package.json/lock, server/main.go config line)
+- CORS change is the plan's explicit deployment-config exception

@@ -97,7 +97,7 @@ func GetNotice(db *sql.DB) gin.HandlerFunc {
 		query := `
 			SELECT id, title, content, is_published, created_at, updated_at
 			FROM notices
-			WHERE id = $1
+			WHERE id = $1 AND is_published = true
 		`
 
 		err := db.QueryRow(query, id).Scan(&n.ID, &n.Title, &n.Content, &n.IsPublished, &n.CreatedAt, &n.UpdatedAt)

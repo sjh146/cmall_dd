@@ -1,0 +1,53 @@
+Todo 8 E2E 검증 — webhook 자동 트리거 + 파이프라인 그린 + feature 브랜치 정리
+================================================================================
+일시: 2026-08-09 (KST) | 작업: cmall_dd Jenkins CI/CD E2E
+
+1. 빌드 #4 최종 결과 (Todo 8 acceptance)
+--------------------------------------------------------------------------------
+- lastBuild api: number=4, building=false, result=SUCCESS, duration=209132ms
+- cause: GitHubPushCause "Started by GitHub push by sjh146"
+  (webhook 자동 트리거 실측 — 수동 빌드 아님)
+- checked out Revision c3f889160f8cb6daa93c9096b7e79204baecfd14 (origin/master)
+
+2. GitHub webhook delivery (push → Jenkins 도달)
+--------------------------------------------------------------------------------
+- delivery id=3835974124530827264, status=OK, http 200, 2026-08-09T08:37:28.974Z
+- (이전 delivery 3835972222881628160 OK 200 @08:22:43 = 빌드 #3 트리거)
+- webhook id=663307951 (8080 터널 https://currently-heights-participated-chemicals.trycloudflare.com)
+
+3. 파이프라인 스테이지별 결과 (console #4)
+--------------------------------------------------------------------------------
+- backend_smoke: go vet ./... && go test ./... → 6개 패키지 [no test files] exit 0
+- frontend_ci:   npx tsc --noEmit(비차단 echo) + vite build → 1726 modules, built in 10.63s, exit 0
+- compose_smoke: docker compose config -q → OK
+- report:        archiveArtifacts (reports/** 미존재 경고만 — allowEmptyArchive로 비차단)
+- Finished: SUCCESS
+
+4. 빌드 #3 실패 원인 (docker-in-docker bind mount) 및 수정 (이번 E2E의 핵심 디버깅)
+--------------------------------------------------------------------------------
+- 원인: Jenkins 컨테이너의 docker CLI가 compose 볼륨 경로 ./server를
+  /var/jenkins_home/workspace/cmall_dd-pipeline/server (컨테이너 기준)로 변환.
+  호스트 daemon이 그 경로를 호스트 절대경로로 해석 → /var/jenkins_home이 root
+  소유로 자동 생성, server/ 빈 디렉토리 auto-create → /app/server에 go.mod 없음
+  → "pattern ./...: directory prefix . does not contain main module" 실패.
+- 수정 (커밋 c3f8891): test-go/test-front를 볼륨 마운트 대신 build 컨텍스트로
+  전환 — CLI가 컨텍스트 tar를 daemon으로 스트리밍하므로 daemon이 호스트 경로를
+  해석하지 않음. server/Dockerfile.ci + Dockerfile.frontend.ci 신규, Jenkinsfile에
+  docker compose run --rm --build 추가.
+- 사전 검증: ① 호스트에서 docker compose run --rm --build test-go/test-front 그린
+  ② Jenkins 컨테이너 내부(e2e-repro 워크스페이스)에서 동일 커맨드 재현 — 동일
+  docker-in-docker 조건에서도 test-go/test-front 모두 exit 0 (repro 후 워크스페이스 삭제)
+
+5. feature/ci-e2e-check 브랜치 정리
+--------------------------------------------------------------------------------
+- feature 브랜치 커밋(9d32f5e→6404b5b→344a8b9)은 모두 master에 이미 존재
+  (merge-base --is-ancestor 확인 = 이미 머지됨)
+- 로컬 삭제: git branch -d feature/ci-e2e-check → 삭제 (과거 344a8b9)
+- 리모트 삭제: git push origin --delete feature/ci-e2e-check → [deleted]
+- 잔여 브랜치: master (origin/master, origin/HEAD)만 존재
+
+6. 증적
+--------------------------------------------------------------------------------
+- Jenkins REST: job/cmall_dd-pipeline/4/api/json (result=SUCCESS, cause=GitHub push)
+- console: /tmp/build4-console.txt (224 lines)
+- GitHub API: hooks/663307951/deliveries (OK 200)

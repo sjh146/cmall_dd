@@ -1,0 +1,26 @@
+TASK 1 EVIDENCE — cmall-dd-deploy (docker compose 시크릿 분리 + postgres 5433 + 잘못된 env 제거)
+Date: 2026-08-09
+Plan: .omo/plans/cmall-dd-deploy.md (v2)
+
+== What was done ==
+(a) Root .env created (gitignored, chmod 600, 4 keys): POSTGRES_PASSWORD / DB_PASSWORD (openssl rand -hex 32, same value), JWT_SECRET (openssl rand -hex 32), ADMIN_EMAIL=a@naver.com. Values never echoed to stdout during creation.
+(b) docker-compose.yml: backend & postgres gained `env_file: - .env`; hardcoded secrets replaced with ${DB_PASSWORD:?}, ${JWT_SECRET:?}, ${ADMIN_EMAIL:-a@naver.com}, ${POSTGRES_PASSWORD:?}; postgres host port 5432 -> 5433 (container-internal 5432 kept).
+(c) Removed frontend `VITE_API_URL=http://localhost:8081/api/v1` (frontend env block deleted) — api.ts uses VITE_API_BASE_URL with relative /api/v1 default (src/lib/api.ts:1), nginx same-origin proxy.
+(d) server/.env.example: replaced exposed plaintext secrets (postgres / cmall_dd_secret_key_change_in_production) with placeholders; keys synced (DB_HOST=postgres, DB_PORT=5432, PORT=8081, ADMIN_EMAIL).
+
+== Acceptance criteria results ==
+[A1] grep DB_PASSWORD/JWT_SECRET/ADMIN_EMAIL/POSTGRES_PASSWORD in docker-compose.yml -> ${...:?} / ${...:-...} forms only (no plaintext)      PASS
+[A2] postgres host port -> "5433:5432" only; DB_PORT=5432 is container-internal                                PASS
+[A3] grep -rn "localhost:8081/api" docker-compose.yml -> NO_MATCH                                           PASS
+[A4] git check-ignore .env -> .env (ignored)                                                                  PASS
+[A5] docker compose config -> secrets injected from .env (DB_PASSWORD/JWT_SECRET/POSTGRES_PASSWORD resolved)   PASS
+
+== QA scenarios ==
+[happy] docker compose config resolved injected values from .env (no seed needed)          PASS
+[failure] .env temporarily removed -> `docker compose config` exit=1, error: "required variable DB_PASSWORD is missing a value" — .env restored afterwards, chmod 600 confirmed  PASS
+
+== Guardrails ==
+- .env not git-added (check-ignore confirms)
+- 5432 host binding untouched (selling_dd_db unaffected)
+- Existing 8080 tunnel / Jenkins untouched
+- No product logic modified (compose/env only)

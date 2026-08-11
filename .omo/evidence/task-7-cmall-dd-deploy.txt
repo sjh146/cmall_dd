@@ -1,0 +1,43 @@
+TASK 7 EVIDENCE — cmall-dd-deploy (GitHub webhook 등록 + scripts/re-register-webhook.sh 산출물화)
+Date: 2026-08-09
+Plan: .omo/plans/cmall-dd-deploy.md (v2)
+
+== What was done ==
+(a) 터널 80 URL로 webhook 등록: https://dispatch-dir-boxes-mas.trycloudflare.com/github-webhook/ (push 이벤트, content_type=json)
+(a1) G14 안전망: Todo 6에서 job config.xml에 SCMTrigger(* * * * *) 이미 포함 — 터널 재시작으로 webhook 공백 창에도 push 최대 1분 내 감지 (계획서 `*/5 * * * *` 이하 충족)
+(b) scripts/re-register-webhook.sh 작성 — selling_dd/scripts/re-register-webhook.sh(proven 멱등 패턴) 재사용:
+   - GH_REPO 기본값 sjh146/cmall_dd로 교체
+   - 토큰: GH_TOKEN env → ~/.git-credentials 런타임 추출 → git remote fallback (하드코딩 금지)
+   - 터널 URL: 인자 → .omo/plans/cmall-dd-deploy.md 런타임 레지스트리 자동 탐지 (하드코딩 금지)
+   - 동일 config.url 기존 webhook 발견 시 삭제 후 재생성 (멱등)
+(c) 자동 등록 실행: `GH_REPO=sjh146/cmall_dd ./scripts/re-register-webhook.sh https://dispatch-dir-boxes-mas.trycloudflare.com`
+   → REGISTERED webhook id=663307210
+(d) 검증: GitHub API hooks에서 id·url·events 확인 + webhook 엔드포인트 도달성 200
+(e) 멱등 재검증 (1차): existing #663307210 삭제 → 새 id=663307371 생성
+(f) 멱등 재검증 (2차): existing #663307371 삭제 → 새 id=663307378 생성
+
+== 발견·수정된 버그 (본 task의 실질 산출물) ==
+- PAT 추출 실패: ~/.git-credentials가 `https://sjh146:<PAT>@github.com` 형식(경로 `/` 없음)이라
+  selling_dd의 sed 패턴 `@github\.com/.*`이 매치하지 않음 → `@github\.com[^[:space:]]*`로 수정
+- 멱등성 실패(422 Hook already exists): `WEBHOOK_URL="$WEBHOOK_URL" curl ... | python3` 구문은
+  환경변수가 파이프라인 첫 명령(curl)에만 적용, python3에는 미전달 → os.environ 조회 실패로
+  기존 webhook 탐지 불가 → export WEBHOOK_URL 후 별도 실행으로 수정 (재발 방지 주석 포함)
+
+== Acceptance criteria results ==
+[A1] 스크립트 실행이 "REGISTERED webhook id=..." 출력  ->  PASS (id=663307210)
+[A2] PAT 출처: GH_TOKEN 미사용, ~/.git-credentials 런타임 추출(길이 40, echo/로그 금지 준수)  ->  PASS
+[A3] GitHub API hooks 조회: [(663307210, '.../github-webhook/', 'json', ['push'])]  ->  PASS
+[A4] 재실행 멱등: "existing webhook #... → 삭제" + 새 id  ->  PASS (2회 연속 확인)
+[A5] curl -s https://dispatch-dir-boxes-mas.trycloudflare.com/github-webhook/  ->  200  PASS
+
+== QA scenarios ==
+[happy] 등록·재등록 멱등 동작  PASS
+[failure] PAT 만료 시 "GH_TOKEN 미설정 + ~/.git-credentials/git remote에 토큰 없음" 안내 경로 존재;
+         퇴역 URL(터널 변경) → 인자/레지스트리로 새 URL upsert 가능 (터널 URL 하드코딩 없음)  PASS
+
+== Guardrails ==
+- selling_dd webhook 미접촉 (repo 분리: cmall_dd hooks만 조작, id=663307210 → 663307378)
+- PAT 미노출: 스크립트·로그·evidence에 평문 없음, 명령줄에도 미출력
+- 터널 URL 하드코딩 없음 (인자/레지스트리 읽기)
+- G14 준수: SCMTrigger 폴 안전망 병행
+- Commit: Y | ci(git): cmall_dd webhook 등록 + scripts/re-register-webhook.sh 멱등 재등록(재사용)

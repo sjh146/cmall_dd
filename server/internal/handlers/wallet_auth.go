@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -132,8 +133,8 @@ func WalletVerify(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// ② 서명 검증 (dev-mock: "0xdev" 시그니처 허용 — DEV_SKIP_SIGNATURE=true 일 때만)
-		if !devSignatureOK(req.Signature) {
+		// ② 서명 검증 (dev-mock: "0xdev" 시그니처 — DEV_SKIP_SIGNATURE + DEV_WALLETS allowlist + 비프로덕션)
+		if !devSignatureOK(wallet, req.Signature) {
 			chainID := envInt("CHAIN_ID", 84532)
 			msg := []byte(sprintf(loginMessageFmt, chainID, req.Nonce))
 			recovered, err := recoverAddress(msg, req.Signature)
@@ -226,9 +227,25 @@ func recoverAddress(message []byte, signature string) (string, error) {
 	return crypto.PubkeyToAddress(*pub).Hex(), nil
 }
 
-// devSignatureOK — dev-mock 전용: DEV_SKIP_SIGNATURE=true 일 때 "0xdev" 허용
-func devSignatureOK(signature string) bool {
-	return envBool("DEV_SKIP_SIGNATURE", false) && strings.EqualFold(signature, "0xdev")
+// devSignatureOK — 개발 전용 우회 서명.
+// 조건: DEV_SKIP_SIGNATURE=true + APP_ENV != production + DEV_WALLETS(콤마분리)에 지갑 포함.
+// allowlist 미설정(빈 목록)이면 우회 불가 — 기본 fail-closed (CWE-287 백도어 차단).
+func devSignatureOK(wallet, signature string) bool {
+	if !envBool("DEV_SKIP_SIGNATURE", false) {
+		return false
+	}
+	if os.Getenv("APP_ENV") == "production" {
+		return false
+	}
+	if !strings.EqualFold(signature, "0xdev") {
+		return false
+	}
+	for _, w := range strings.Split(os.Getenv("DEV_WALLETS"), ",") {
+		if strings.EqualFold(strings.TrimSpace(w), wallet) {
+			return true
+		}
+	}
+	return false
 }
 
 // getOrCreateWalletUser — 지갑 전용 사용자 자동 프로비저닝

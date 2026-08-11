@@ -1,0 +1,29 @@
+TASK 6 EVIDENCE — cmall-dd-deploy (Jenkins pipeline JOB 생성: REST API + crumb + config.xml)
+Date: 2026-08-09
+Plan: .omo/plans/cmall-dd-deploy.md (v2)
+
+== What was done ==
+(a) 플러그인 전제 확인(G10): pluginManager/api/json depth=1 → ['git','github','pipeline-model-definition','workflow-cps','workflow-job'] 5종 전부 포함  PASS
+(b) crumb 획득 시도: crumbIssuer/api/json (cookie jar /tmp/cj) — DefaultCrumbIssuer, crumbRequestField=Jenkins-Crumb
+(c) config.xml 작성(/tmp/cmall_dd-job.xml) — finance_dd-pipeline/config.xml 템플릿 기반: flow-definition + CpsScmFlowDefinition(scm url https://github.com/sjh146/cmall_dd.git, branch master, scriptPath Jenkinsfile, lightweight true) + triggers GitHubPushTrigger + SCMTrigger(* * * * *)
+(d) job 생성: REST API createItem?name=cmall_dd-pipeline (Content-Type application/xml)
+   - ⚠️ 삽질 기록: cookie jar + Jenkins-Crumb 헤더만으로는 403 "No valid crumb was included in the request" 3회 반복.
+     → **cookie jar + Jenkins-Crumb 헤더 + `-u admin:...`(기본 인증) 동시 포함 시 HTTP 200 성공.**
+     (원인: crumb가 세션에 바인딩되므로 요청 자체의 인증도 필요했던 것으로 추정 — Jenkins 버전 차이/보안 설정 때문)
+(e) 검증: job URL 200 + config.xml 존재 + jobs 디렉터리에 cmall_dd-pipeline 표시
+
+== Acceptance criteria results ==
+[A1] curl -w %{http_code} http://localhost:8080/job/cmall_dd-pipeline/  ->  200  PASS
+[A2] test -f /home/dduckbeagy/jenkins/jenkins_home/jobs/cmall_dd-pipeline/config.xml  ->  true  PASS
+[A3] ls /home/dduckbeagy/jenkins/jenkins_home/jobs/ | grep cmall_dd  ->  cmall_dd-pipeline  PASS
+
+== QA scenarios ==
+[happy] job 200 + config.xml 생성 + 플러그인 5종 확인  PASS
+[failure] createItem 403(crumb) 재현 → 해결: curl에 -u 기본 인증 추가. XML 스키마 오류는 발생 안 함(Content-Type 유지). 플러그인 누락 없음(G10 PASS).
+
+== Guardrails ==
+- 기존 job(finance_dd-pipeline 등) 미수정 — createItem은 신규 이름 cmall_dd-pipeline만 사용
+- GitHubPushTrigger 포함(GitHub 플러그인 1.47.0 설치 확인 후) — G10 준수
+- 평문 비번은 명령줄 인자로만 사용(로그/파일 미기록)
+- 커밋 N — job config는 jenkins_home 내부(jobs/cmall_dd-pipeline/config.xml), 커밋 대상 아님
+- 다음 단계: Todo 7 webhook 등록 — job 생성 완료가 첫 게이트(성립)

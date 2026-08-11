@@ -97,7 +97,7 @@ func GetLecture(db *sql.DB) gin.HandlerFunc {
 		query := `
 			SELECT id, title, description, content, thumbnail, video_url, duration, instructor, is_published, created_at, updated_at
 			FROM lectures
-			WHERE id = $1
+			WHERE id = $1 AND is_published = true
 		`
 
 		err := db.QueryRow(query, id).Scan(&l.ID, &l.Title, &l.Description, &l.Content, &l.Thumbnail, &l.VideoURL, &l.Duration, &l.Instructor, &l.IsPublished, &l.CreatedAt, &l.UpdatedAt)

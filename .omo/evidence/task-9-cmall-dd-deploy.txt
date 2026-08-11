@@ -1,0 +1,73 @@
+Todo 9 전체 게이트 + Final verification wave F1-F4
+================================================================================
+일시: 2026-08-09 (KST) | 작업: cmall_dd 배포·CI 루프 완료 검증
+
+1. 전체 스모크 재실행 (9a)
+--------------------------------------------------------------------------------
+- HTTP 4경로 + 공개URL: 전부 200
+  http://localhost:80/ 200 / http://localhost:80/api/v1/products 200
+  http://localhost:3000/ 200 / http://localhost:8081/api/v1/products 200
+  https://dispatch-dir-boxes-mas.trycloudflare.com/ 200 (+ /api/v1/products 200)
+- docker compose run --rm --build test-go: 6개 패키지 [no test files] exit 0
+- docker compose run --rm --build test-front: tsc 비차단 echo + vite build 성공 exit 0
+- docker compose ps: backend/frontend/nginx Up, postgres Up (healthy)
+
+2. 시크릿 미노출 (9b)
+--------------------------------------------------------------------------------
+- git status --porcelain: .omo/ + EXECUTE_INSTRUCTIONS.md + INSTRUCTIONS.md 만 untracked
+  (시크릿 추적 없음)
+- grep "cmall_dd_secret_key_change_in_production|POSTGRES_PASSWORD=postgres|DB_PASSWORD=postgres"
+  --include=*.yml/*.yaml/*.env*: 매치 없음 (exit 1)
+- git check-ignore .env → .env (루트 .env는 gitignore 확인)
+
+3. 심층분석 6섹션 확정 (9c)
+--------------------------------------------------------------------------------
+- 플랜 하단 심층분석 6섹션 존재 확인:
+  ## 1. 포트 충돌 해법 (postgres 5432) / ## 2. 터널 URL 변동 리스크와 대안
+  ## 3. Jenkins pipeline job 생성 방법 비교 / ## 4. 시크릿 관리
+  ## 5. 테스트 현황 (실측) / ## 6. 리스크/완화 요약
+
+4. Final verification wave F1-F4 (9d)
+--------------------------------------------------------------------------------
+F1 Plan compliance: 
+  - 9 todos 전부 완료 (체크박스 [x], 이 파일로 증적)
+  - 가드레일: 5432(selling_dd_db) 유지 LISTEN, Jenkins 8080 유지, finance/survey job
+    미수정 (jobs/에 cmall_dd-pipeline + finance_dd-pipeline + survey-auto-extensions)
+  - selling_dd 교훈 반영: job 실생성(Todo 6, /job/cmall_dd-pipeline/ 200) → webhook(Todo 7) 순서
+  - 심층분석 6섹션 포함 → F1 APPROVE
+F2 Config/code quality:
+  - compose 시크릿 평문 없음 (grep exit 1), 루트 .env 참조 일관
+  - 잘못된 VITE_API_URL: docker-compose.yml + src 전역 grep 0건 (제거 확인)
+  - postgres "5433:5432" (host 5433, 내부 5432), 5432 재바인딩 없음
+  - tsconfig.json 존재, typescript devDep(^7.0.2), CORS_ORIGINS env 반영(main.go:39)
+  - test 서비스: 볼륨 마운트 → build 컨텍스트 전환(c3f8891)로 docker-in-docker 해결
+  → F2 APPROVE
+F3 Real manual QA:
+  - 4경로 200 + 공개URL 200 (postgres healthy 기준)
+  - Jenkins job /job/cmall_dd-pipeline/ 200
+  - webhook 실제 push→SUCCESS: 빌드 #4(c3f8891 push) + 빌드 #5(209eefc push) 모두
+    cause "Started by GitHub push by sjh146" + SUCCESS
+  → F3 APPROVE
+F4 Scope fidelity:
+  - 기존 인프라 비파괴: 5432(selling_dd_db)·8080(Jenkins)·8080 터널 유지, 두
+    cloudflared 프로세스 공존 (80 터널 신규 + 8080 터널 기존)
+  - 시크릿 커밋/노출 없음 (위 2번), 443/HTTPS 범위 제외 유지
+  - webhook 정합: 잘못된 80 터널 webhook #663307378 삭제, Jenkins 8080 터널
+    webhook #663321472 재등록 (auto-detect 수정 209eefc)
+  → F4 APPROVE
+
+5. 증적
+--------------------------------------------------------------------------------
+- Jenkins: job/cmall_dd-pipeline/4,5 (SUCCESS, GitHubPushCause)
+- GitHub: hooks/663321472/deliveries OK 200 (08:49:05 = 빌드 #5 트리거)
+- webhook 재등록: re-register-webhook.sh auto-detect 수정 후 멱등 재실행 검증
+
+6. 기존 코드 잔존 시크릿 폴백 (사전 존재, 범위 외 — 기록용)
+--------------------------------------------------------------------------------
+- server/internal/handlers/auth.go:28, middleware.go:33,75 — 사전 존재(4901a17
+  'softwareshop' 커밋, 우리 커밋 미접촉)하는 JWT 폴백
+  `secretKey = "cmall_dd_secret_key_change_in_production"` (JWT_SECRET 미설정 시에만).
+- 영향 없음: compose 21행 `JWT_SECRET=${JWT_SECRET:?}` fail-fast — 시크릿 없으면
+  컨테이너 기동 자체가 거부되어 폴백 경로 실행 불가. .env에 신규 openssl 랜덤 JWT_SECRET 주입.
+- 범위 외: 계획서 가드레일 "Must NOT: 핸들러 로직 변경"(Todo 2) + "제품 기능 코드 수정 금지"
+  → 수정하지 않음. 후속 작업(개발 환경 JWT 폴백 제거) 이슈 후보로 기록.

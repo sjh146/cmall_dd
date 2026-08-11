@@ -43,15 +43,11 @@ func envBool(name string, fallback bool) bool {
 	return b
 }
 
-// jwtSecret — JWT 시크릿. 프로덕션에서는 env 강제(fail-closed, 심층분석 S3).
-// 개발 환경에서는 기존 하위호환 폴백 + 경고 로그.
+// jwtSecret — JWT 시크릿. env 필수 (하드코딩 폴백 제거 — CWE-287, fail-closed).
 func jwtSecret() []byte {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		if os.Getenv("APP_ENV") == "production" {
-			panic("JWT_SECRET is required in production (fail-closed)")
-		}
-		secret = "cmall_dd_secret_key_change_in_production"
+		panic("JWT_SECRET is required (fail-closed)")
 	}
 	return []byte(secret)
 }

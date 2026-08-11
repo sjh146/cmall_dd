@@ -1,0 +1,31 @@
+TASK 3 EVIDENCE — cmall-dd-deploy (docker compose 로컬 스택 빌드·부팅·라우팅 스모크)
+Date: 2026-08-09
+Plan: .omo/plans/cmall-dd-deploy.md (v2)
+
+== What was done ==
+(a) First-run only `docker compose down -v` (no pre-existing cmall volumes/images — verified via `docker volume ls`/`docker images` before; safe no-op).
+(b) `docker compose up -d --build` — backend (Go builder + alpine runtime), frontend (node builder + nginx), postgres (pgvector/pg16), nginx (nginx:alpine) all built & started.
+(c) Latent deployment bug found & fixed (config-only): nginx.frontend.conf had `listen 3000;` (local-dev convention leftover). Compose maps "3000:80" and root nginx upstreams to `frontend:80`, so nothing listened on container port 80 -> host:3000 refused (000) and nginx `location /` 502. Fixed `listen 3000` -> `listen 80` and rebuilt frontend image. This compose had never been run before (no containers existed), so the mismatch was dormant.
+(d) Verified 4 routes, compose ps health, backend startup log, baked-URL absence per v2 method (grep inside built image, not local ./build).
+
+== Acceptance criteria results ==
+[A1] curl http://localhost:80/                  -> 200 (SPA index.html body confirmed)   PASS
+[A2] curl http://localhost:80/api/v1/products   -> 200 (backend via nginx)                 PASS
+[A3] curl http://localhost:3000/                -> 200 (frontend nginx)                    PASS
+[A4] curl http://localhost:8081/api/v1/products -> 200 (backend direct)                     PASS
+[A5] docker logs cmall_dd-backend | grep "Server starting on port 8081" -> found (no "Failed to connect")  PASS
+[A6] baked-URL (v2): `docker run --rm --entrypoint sh cmall_dd-frontend -c 'grep -rl "localhost:8081/api" /usr/share/nginx/html || echo NO_BAKED_URL'` -> NO_BAKED_URL  PASS
+[A7] docker compose ps -> postgres Up (healthy) / backend Up / frontend Up / nginx Up       PASS
+
+== QA scenarios ==
+[happy] 4 URLs 200 + backend started (healthy postgres wait gate used by backend depends_on)  PASS
+[failure->fixed] frontend 502/000: nginx.frontend.conf listen port mismatch -> changed listen 3000 -> 80, rebuilt, retest all 200  PASS
+
+== Deviations from plan (documented) ==
+- nginx.frontend.conf `listen` fix: deployment config file change (NOT product logic). Required for 3000:80 mapping + frontend:80 upstream to function. Included in this todo's commit.
+- /api/v1/products returns JSON body `null` (empty table) with HTTP 200 — pre-existing handler behavior, out of scope.
+
+== Guardrails ==
+- No -v used after initial run
+- 5433 host binding only; selling_dd_db(5432) untouched
+- Existing 8080 tunnel / Jenkins untouched
