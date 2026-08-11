@@ -2,7 +2,7 @@
 # 빌드 컨텍스트로 소스를 이미지에 포함 → 런타임 볼륨 마운트 불필요.
 # docker-in-docker(Jenkins 컨테이너 CLI + 호스트 daemon)에서도 CLI가
 # 컨텍스트 tar를 스트리밍하므로 호스트 경로 해석 문제 없음 (build #3 교훈).
-FROM golang:1.21-alpine
+FROM golang:1.25-alpine
 
 WORKDIR /app
 
