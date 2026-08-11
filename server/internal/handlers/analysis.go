@@ -106,11 +106,25 @@ func CreateAnalysis(db *sql.DB) gin.HandlerFunc {
 		}
 
 		// analyist_dd 내부 API 호출 (M4 연동 시 활성화)
+		// request_type → 내부 엔드포인트 매핑 (M6 상품: 스윙/백테스트/팩터 리포트)
 		if analyistURL() != "" {
-			internalResult, callErr := callAnalyistInternal(http.MethodPost, "/internal/analysis", map[string]string{
-				"symbol":       req.Symbol,
-				"request_type": req.RequestType,
-			})
+			var internalResult map[string]interface{}
+			var callErr error
+
+			switch req.RequestType {
+			case "swing_screener":
+				internalResult, callErr = callAnalyistInternal(http.MethodGet, "/internal/swing-screener", nil)
+			case "backtest":
+				internalResult, callErr = callAnalyistInternal(http.MethodGet, "/internal/backtest", nil)
+			case "factor_report":
+				internalResult, callErr = callAnalyistInternal(http.MethodGet, "/internal/factor-report", nil)
+			default: // stock_report 등 — 온디맨드 분석 합성
+				internalResult, callErr = callAnalyistInternal(http.MethodPost, "/internal/analysis", map[string]string{
+					"symbol":       req.Symbol,
+					"request_type": req.RequestType,
+				})
+			}
+
 			if callErr == nil {
 				internalID, _ := internalResult["request_id"].(string)
 				resultJSON, _ := json.Marshal(internalResult)
