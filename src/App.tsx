@@ -15,6 +15,7 @@ import AdminPage from './pages/AdminPage';
 import LecturePage from './pages/LecturePage';
 import NoticePage from './pages/NoticePage';
 import ProductPage from './pages/ProductPage';
+import AgentsPage from './pages/AgentsPage';
 import { Button } from './components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './components/ui/select';
 import { Grid, List } from 'lucide-react';
@@ -456,6 +457,7 @@ export default function App() {
           <Route path="/notices" element={<NoticePage />} />
           <Route path="/my-products" element={<MyProducts />} />
           <Route path="/product/:id" element={<ProductPage />} />
+          <Route path="/agents" element={<AgentsPage />} />
         </Routes>
       </CartProvider>
     </BrowserRouter>
