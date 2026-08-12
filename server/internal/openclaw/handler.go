@@ -2,7 +2,9 @@ package openclaw
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/gin-gonic/gin"
 )
@@ -28,6 +30,24 @@ type ClickElementRequest struct {
 	URL       string `json:"url,omitempty"`
 }
 
+// validateOpenClawURL — SSRF 방지: http/https 스킴만 허용 (CWE-918)
+func validateOpenClawURL(raw string) (string, error) {
+	if raw == "" {
+		return "", nil // URL 미지정은 허용 (현재 페이지 대상)
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "", err
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return "", fmt.Errorf("only http/https URLs are allowed")
+	}
+	if u.Host == "" {
+		return "", fmt.Errorf("URL host is required")
+	}
+	return u.String(), nil
+}
+
 // ClickElement handles POST /api/v1/openclaw/click
 func (h *Handler) ClickElement(c *gin.Context) {
 	var req ClickElementRequest
@@ -35,6 +55,14 @@ func (h *Handler) ClickElement(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	// SSRF 방지 (CWE-918)
+	cleanURL, err := validateOpenClawURL(req.URL)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	req.URL = cleanURL
 
 	// Check service health first
 	if err := h.client.CheckServiceHealth(); err != nil {
@@ -84,6 +112,14 @@ func (h *Handler) TakeSnapshot(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	// SSRF 방지 (CWE-918)
+	cleanURL, err := validateOpenClawURL(req.URL)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	req.URL = cleanURL
 
 	// Check service health first
 	if err := h.client.CheckServiceHealth(); err != nil {

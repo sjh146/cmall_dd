@@ -56,13 +56,10 @@ func Register(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// Insert user - check if email is admin email from env
+		// Insert user - admin 승격은 기존 admin의 SetUserAsAdmin 경로로만 (CWE-269:
+		// ADMIN_EMAIL 일치 가입 시 자동 admin 부여는 등록자가 관리자 계정을 선점할 수 있음)
 		var user models.User
 		role := "seller"
-		adminEmail := os.Getenv("ADMIN_EMAIL")
-		if adminEmail != "" && req.Email == adminEmail {
-			role = "admin"
-		}
 
 		query := `
 			INSERT INTO users (email, password, name, role)

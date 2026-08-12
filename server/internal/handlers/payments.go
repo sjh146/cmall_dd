@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -59,6 +60,34 @@ func verifyWithGateway(referenceID string) (map[string]interface{}, error) {
 		return nil, err
 	}
 	return result, nil
+}
+
+// registerWithGateway — 결제 주문 사전등록 (dev-mock: 게이트웨이 저장; 온체인: owner 서명 registerOrder 준비)
+// 실패해도 결제 생성은 차단하지 않는다 (온체인 등록은 게이트웨이 signer 연동 후 활성화).
+func registerWithGateway(referenceID, walletAddress string, amountUsdc int64) {
+	base := gatewayURL()
+	if base == "" {
+		return
+	}
+	body, _ := json.Marshal(map[string]interface{}{
+		"reference_id":   referenceID,
+		"wallet_address": walletAddress,
+		"amount_usdc":    strconv.FormatInt(amountUsdc, 10),
+	})
+	req, err := http.NewRequest(http.MethodPost, base+"/internal/blockchain/payment/register", bytes.NewReader(body))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Internal-Api-Key", internalKey("INTERNAL_API_KEY"))
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+	_, _ = io.ReadAll(io.LimitReader(resp.Body, 1<<16))
 }
 
 // CreatePayment — POST /api/v1/payments/create (JWT)
@@ -131,6 +160,9 @@ func CreatePayment(db *sql.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create payment"})
 			return
 		}
+
+		// 결제 주문 사전등록 (dev-mock 게이트웨이; 온체인 registerOrder는 signer 연동 후)
+		registerWithGateway(payment.ReferenceID, payment.WalletAddress, payment.AmountUsdc)
 
 		c.JSON(http.StatusCreated, models.PaymentResponse{
 			Payment:         payment,

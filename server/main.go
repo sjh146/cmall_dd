@@ -123,10 +123,11 @@ func main() {
 		// AI 에이전트 상품 목록 (public)
 		api.GET("/agents", handlers.GetAgents(db))
 
-		// OpenClaw browser automation routes
+		// OpenClaw browser automation routes (인증 필수 — SSRF/CWE-918 대응)
 		openclawBaseURL := os.Getenv("OPENCLAW_BASE_URL")
 		openclaw := openclawHandler.NewHandler(db, openclawBaseURL)
 		openclawGroup := api.Group("/openclaw")
+		openclawGroup.Use(handlers.AuthMiddleware())
 		{
 			openclawGroup.GET("/health", openclaw.HealthCheck)
 			openclawGroup.POST("/click", openclaw.ClickElement)
