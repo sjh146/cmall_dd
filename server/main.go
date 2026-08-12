@@ -114,6 +114,9 @@ func main() {
 
 			// ── 결제 플랫폼 (M3 — 지갑/USDC 결제 + 분석) ──
 			protected.POST("/wallet/connect", handlers.WalletConnect(db))
+			// M2-1: World ID 인간 증명 (설계: M2-zk-auth-design.md §3.1)
+			protected.POST("/wallet/humanity/nonce", handlers.HumanityNonce(db))
+			protected.POST("/wallet/humanity/verify", handlers.HumanityVerify(db))
 			protected.POST("/payments/create", handlers.CreatePayment(db))
 			protected.GET("/payments/:referenceId", handlers.GetPayment(db))
 			protected.POST("/analysis", handlers.CreateAnalysis(db))

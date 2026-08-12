@@ -268,11 +268,19 @@ func getOrCreateWalletUser(db *sql.DB, wallet string) (models.User, error) {
 	}
 
 	// 신규: 랜덤 해시 + wallet 로컬 이메일 (비밀번호 로그인 불가 계정, is_wallet_user=true)
+	// ON CONFLICT: 컬럼 도입 전 생성된 레거시 지갑 계정(is_wallet_user=false)을 승격 —
+	// 비밀번호를 랜덤으로 교체해 공격자 로그인 무효화, admin role은 보존.
 	randPass, _ := randomHex(32)
 	hashed, _ := hashPassword(randPass)
 	err = db.QueryRow(`
 		INSERT INTO users (email, password, name, role, is_wallet_user)
 		VALUES ($1, $2, $3, 'buyer', true)
+		ON CONFLICT (email) DO UPDATE
+			SET password = EXCLUDED.password,
+			    name = EXCLUDED.name,
+			    is_wallet_user = true,
+			    role = CASE WHEN users.role = 'admin' THEN 'admin' ELSE 'buyer' END,
+			    updated_at = CURRENT_TIMESTAMP
 		RETURNING id, email, name, role, avatar, bio, created_at, updated_at
 	`, email, hashed, "Wallet User").Scan(&user.ID, &user.Email, &user.Name, &user.Role,
 		&user.Avatar, &user.Bio, &user.CreatedAt, &user.UpdatedAt)

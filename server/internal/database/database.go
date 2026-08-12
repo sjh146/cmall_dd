@@ -273,6 +273,17 @@ func CreateTables(db *sql.DB) error {
 		return fmt.Errorf("failed to add is_wallet_user to users: %w", err)
 	}
 
+	// M2: World ID 인간 증명 컬럼 (nullifier_hash UNIQUE = 1인 1계정, attributes JSONB = 검증된 속성만)
+	alterWalletsM2 := `
+	ALTER TABLE wallets ADD COLUMN IF NOT EXISTS nullifier_hash VARCHAR(255);
+	ALTER TABLE wallets ADD COLUMN IF NOT EXISTS verification_level VARCHAR(16);
+	ALTER TABLE wallets ADD COLUMN IF NOT EXISTS attributes JSONB NOT NULL DEFAULT '[]';
+	CREATE UNIQUE INDEX IF NOT EXISTS idx_wallets_nullifier ON wallets(nullifier_hash) WHERE nullifier_hash IS NOT NULL;
+	`
+	if _, err := db.Exec(alterWalletsM2); err != nil {
+		return fmt.Errorf("failed to add M2 columns to wallets: %w", err)
+	}
+
 	// 지갑 (시크릿 무영속: 주소/credential_id/검증결과만 저장)
 	createWalletsTableSQL := `
 	CREATE TABLE IF NOT EXISTS wallets (
