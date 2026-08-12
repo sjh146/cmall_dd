@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"cmall_dd/internal/models"
 	"github.com/gin-gonic/gin"
@@ -59,6 +60,12 @@ func Register(db *sql.DB) gin.HandlerFunc {
 		// ADMIN_EMAIL 일치 가입 시 자동 admin 부여는 등록자가 관리자 계정을 선점할 수 있음)
 		var user models.User
 		role := "seller"
+
+		// 지갑 전용 예약 도메인 가입 차단 (CWE-639: wallet.local 스쿼팅 방지)
+		if strings.HasSuffix(strings.ToLower(req.Email), "@wallet.local") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "reserved email domain: @wallet.local"})
+			return
+		}
 
 		query := `
 			INSERT INTO users (email, password, name, role)

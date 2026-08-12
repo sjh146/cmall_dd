@@ -69,6 +69,7 @@ func CreateTables(db *sql.DB) error {
 		password VARCHAR(255) NOT NULL,
 		name VARCHAR(255) NOT NULL,
 		role VARCHAR(50) NOT NULL DEFAULT 'seller',
+		is_wallet_user BOOLEAN NOT NULL DEFAULT FALSE,
 		avatar VARCHAR(500),
 		bio TEXT,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -262,6 +263,14 @@ func CreateTables(db *sql.DB) error {
 	`
 	if _, err := db.Exec(alterProductsUSDC); err != nil {
 		return fmt.Errorf("failed to add crypto_price_usdc to products: %w", err)
+	}
+
+	// 지갑 전용 계정 구분 컬럼 (CWE-639: wallet.local 스쿼팅 방지 — 3차 스캔 대응)
+	alterUsersWallet := `
+	ALTER TABLE users ADD COLUMN IF NOT EXISTS is_wallet_user BOOLEAN NOT NULL DEFAULT FALSE;
+	`
+	if _, err := db.Exec(alterUsersWallet); err != nil {
+		return fmt.Errorf("failed to add is_wallet_user to users: %w", err)
 	}
 
 	// 지갑 (시크릿 무영속: 주소/credential_id/검증결과만 저장)

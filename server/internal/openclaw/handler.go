@@ -3,8 +3,10 @@ package openclaw
 import (
 	"database/sql"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -30,7 +32,7 @@ type ClickElementRequest struct {
 	URL       string `json:"url,omitempty"`
 }
 
-// validateOpenClawURL — SSRF 방지: http/https 스킴만 허용 (CWE-918)
+// validateOpenClawURL — SSRF 방지: http/https 스킴 + 내부 IP/링크로컬 차단 (CWE-918)
 func validateOpenClawURL(raw string) (string, error) {
 	if raw == "" {
 		return "", nil // URL 미지정은 허용 (현재 페이지 대상)
@@ -44,6 +46,15 @@ func validateOpenClawURL(raw string) (string, error) {
 	}
 	if u.Host == "" {
 		return "", fmt.Errorf("URL host is required")
+	}
+	// 내부/링크로컬/프라이빗 IP 차단 (메타데이터 서비스 169.254.169.254 등)
+	host := u.Hostname()
+	if ip := net.ParseIP(host); ip != nil {
+		if ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsUnspecified() {
+			return "", fmt.Errorf("internal/private IP addresses are not allowed")
+		}
+	} else if strings.EqualFold(host, "localhost") {
+		return "", fmt.Errorf("localhost is not allowed")
 	}
 	return u.String(), nil
 }

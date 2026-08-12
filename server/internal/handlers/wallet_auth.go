@@ -249,13 +249,15 @@ func devSignatureOK(wallet, signature string) bool {
 }
 
 // getOrCreateWalletUser — 지갑 전용 사용자 자동 프로비저닝
+// CWE-639 방어: is_wallet_user 플래그로 지갑 전용 계정을 구분 —
+// 일반 가입(wallet.local 예약 도메인은 Register에서 차단)으로 생성된 계정과 충돌 불가.
 func getOrCreateWalletUser(db *sql.DB, wallet string) (models.User, error) {
 	var user models.User
 	email := wallet + "@wallet.local"
 
 	err := db.QueryRow(`
 		SELECT id, email, name, role, avatar, bio, created_at, updated_at
-		FROM users WHERE email = $1
+		FROM users WHERE email = $1 AND is_wallet_user = true
 	`, email).Scan(&user.ID, &user.Email, &user.Name, &user.Role,
 		&user.Avatar, &user.Bio, &user.CreatedAt, &user.UpdatedAt)
 	if err == nil {
@@ -265,12 +267,12 @@ func getOrCreateWalletUser(db *sql.DB, wallet string) (models.User, error) {
 		return user, err
 	}
 
-	// 신규: 랜덤 해시 + wallet 로컬 이메일 (비밀번호 로그인 불가 계정)
+	// 신규: 랜덤 해시 + wallet 로컬 이메일 (비밀번호 로그인 불가 계정, is_wallet_user=true)
 	randPass, _ := randomHex(32)
 	hashed, _ := hashPassword(randPass)
 	err = db.QueryRow(`
-		INSERT INTO users (email, password, name, role)
-		VALUES ($1, $2, $3, 'buyer')
+		INSERT INTO users (email, password, name, role, is_wallet_user)
+		VALUES ($1, $2, $3, 'buyer', true)
 		RETURNING id, email, name, role, avatar, bio, created_at, updated_at
 	`, email, hashed, "Wallet User").Scan(&user.ID, &user.Email, &user.Name, &user.Role,
 		&user.Avatar, &user.Bio, &user.CreatedAt, &user.UpdatedAt)
