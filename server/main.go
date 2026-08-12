@@ -117,6 +117,8 @@ func main() {
 			// M2-1: World ID 인간 증명 (설계: M2-zk-auth-design.md §3.1)
 			protected.POST("/wallet/humanity/nonce", handlers.HumanityNonce(db))
 			protected.POST("/wallet/humanity/verify", handlers.HumanityVerify(db))
+			// M2-2: ZKPassport 속성 증명 (gateway로 검증 위임)
+			protected.POST("/wallet/zkpassport", handlers.ZKPassportVerify(db))
 			protected.POST("/payments/create", handlers.CreatePayment(db))
 			protected.GET("/payments/:referenceId", handlers.GetPayment(db))
 			protected.POST("/analysis", handlers.CreateAnalysis(db))

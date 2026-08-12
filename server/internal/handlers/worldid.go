@@ -18,12 +18,102 @@ import (
 // 설계: M2-zk-auth-design.md §3.1 — 검증은 World ID Cloud Verify (자체 ZK 없음).
 // 서버 저장: nullifier_hash / verification_level만 (프루프 원문 무영속).
 
+// mustRandomHex8 — 8바이트(16 hex) 랜덤 문자열 (오류 시 빈 값 — credential_id 접미용)
+func mustRandomHex8() string {
+	s, _ := randomHex(8)
+	return s
+}
+
 // worldIDConfig — env에서 앱 설정 (미설정 시 fail-closed 503)
 func worldIDConfig() (appID, actionID string, ok bool) {
 	appID = os.Getenv("WORLD_ID_APP_ID")
 	actionID = os.Getenv("WORLD_ID_ACTION_ID")
 	ok = appID != "" && actionID != ""
 	return
+}
+
+// ZKPassportVerify — POST /api/v1/wallet/zkpassport (JWT)
+// 프론트가 생성한 ZKPassport 증명을 gateway(/internal/zkpassport/verify)로 검증 위임 후
+// 검증된 속성만 wallets.attributes(JSONB)에 저장 (원시 증명/여권 데이터 무영속 — 설계 §6).
+func ZKPassportVerify(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, _ := c.Get("userId")
+		walletAddr, _ := c.Get("walletAddress")
+		wallet := strings.ToLower(fmt.Sprintf("%v", walletAddr))
+
+		var req struct {
+			Proofs        interface{} `json:"proofs" binding:"required"`
+			OriginalQuery interface{} `json:"originalQuery" binding:"required"`
+			QueryResult   interface{} `json:"queryResult" binding:"required"`
+			Validity      interface{} `json:"validity,omitempty"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "proofs/originalQuery/queryResult required"})
+			return
+		}
+
+		base := gatewayURL()
+		if base == "" {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "gateway not configured"})
+			return
+		}
+		body, _ := json.Marshal(map[string]interface{}{
+			"proofs":        req.Proofs,
+			"originalQuery": req.OriginalQuery,
+			"queryResult":   req.QueryResult,
+			"validity":      req.Validity,
+		})
+		httpReq, _ := http.NewRequest(http.MethodPost, base+"/internal/zkpassport/verify", bytes.NewReader(body))
+		httpReq.Header.Set("Content-Type", "application/json")
+		httpReq.Header.Set("X-Internal-Api-Key", internalKey("INTERNAL_API_KEY"))
+		client := &http.Client{Timeout: 30 * time.Second}
+		resp, err := client.Do(httpReq)
+		if err != nil {
+			c.JSON(http.StatusBadGateway, gin.H{"error": "gateway unavailable"})
+			return
+		}
+		defer resp.Body.Close()
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+
+		var gw struct {
+			Verified   bool        `json:"verified"`
+			Attributes interface{} `json:"attributes"`
+			Error      string      `json:"error"`
+		}
+		_ = json.Unmarshal(respBody, &gw)
+
+		if resp.StatusCode != http.StatusOK || !gw.Verified {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "zkpassport verification failed", "detail": gw.Error})
+			return
+		}
+
+		// 검증된 속성만 저장 (JSONB) — 원시 증명/여권 데이터 저장 금지
+		attrsJSON, _ := json.Marshal(gw.Attributes)
+		if attrsJSON == nil || string(attrsJSON) == "null" {
+			attrsJSON = []byte("[]")
+		}
+		var credentialID string
+		err = db.QueryRow(`
+			INSERT INTO wallets (user_id, wallet_address, credential_id, verification_result, attributes)
+			VALUES ($1, $2, $3, 'zkpassport_verified', $4::jsonb)
+			ON CONFLICT (wallet_address) DO UPDATE
+				SET attributes = EXCLUDED.attributes,
+				    verification_result = 'zkpassport_verified',
+				    updated_at = NOW()
+			RETURNING credential_id
+		`, userID, wallet, "zkp_"+mustRandomHex8(), string(attrsJSON)).Scan(&credentialID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to store attributes"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"verified":     true,
+			"credential_id": credentialID,
+			"attributes":   json.RawMessage(attrsJSON),
+			"wallet_address": wallet,
+		})
+	}
 }
 
 // WorldIDPublicConfig — GET /api/v1/config/worldid (공개)

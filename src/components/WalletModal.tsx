@@ -19,6 +19,7 @@ export default function WalletModal({ devMode = false }: { devMode?: boolean }) 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [humanity, setHumanity] = useState<string | null>(localStorage.getItem('humanityCredential'));
+  const [passport, setPassport] = useState<string | null>(localStorage.getItem('passportCredential'));
   const [widEnabled, setWidEnabled] = useState(false);
   const [widAppId, setWidAppId] = useState('');
   const [widAction, setWidAction] = useState('');
@@ -54,8 +55,21 @@ export default function WalletModal({ devMode = false }: { devMode?: boolean }) 
     logout();
     removeWalletAddress();
     localStorage.removeItem('humanityCredential');
+    localStorage.removeItem('passportCredential');
     setAddress(null);
     setHumanity(null);
+    setPassport(null);
+  }
+
+  /** devMode ZKPassport 모의 (로컬 플래그만 — 서버 검증 없음) */
+  function mockPassport() {
+    setHumanityLoading(true);
+    setError(null);
+    setTimeout(() => {
+      localStorage.setItem('passportCredential', 'dev-mock-passport:age>=18');
+      setPassport('dev-mock-passport:age>=18');
+      setHumanityLoading(false);
+    }, 300);
   }
 
   /** devMode 인간 증명 모의 (로컬 플래그만 — 서버 검증 없음) */
@@ -137,6 +151,26 @@ export default function WalletModal({ devMode = false }: { devMode?: boolean }) 
             </IDKitWidget>
           ) : (
             <p className="text-xs text-gray-500">World ID 미설정 — 관리자에게 문의하세요.</p>
+          )}
+        </div>
+        <div className="border-t border-green-200 pt-3">
+          <p className="text-sm font-medium mb-1">
+            {passport ? '✅ 속성 증명 완료 (ZKPassport)' : '🛂 속성 증명 (ZKPassport)'}
+          </p>
+          {passport ? (
+            <p className="text-xs text-gray-600 break-all">{passport}</p>
+          ) : devMode ? (
+            <button
+              onClick={mockPassport}
+              disabled={humanityLoading}
+              className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs disabled:opacity-50"
+            >
+              {humanityLoading ? '처리 중...' : '개발모드 속성 증명 완료'}
+            </button>
+          ) : (
+            <p className="text-xs text-gray-500">
+              ZKPassport 실증명은 ZKPassport 앱(ePassport NFC) 필요 — 준비되면 활성화됩니다.
+            </p>
           )}
         </div>
         <button

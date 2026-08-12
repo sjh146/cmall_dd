@@ -108,6 +108,27 @@ export async function humanityVerify(
   return { credentialId: d.credential_id, verificationLevel: d.verification_level };
 }
 
+/** ZKPassport 속성 증명 검증 (JWT, M2-2) — {verified, attributes} */
+export async function zkpassportVerify(payload: {
+  proofs: unknown;
+  originalQuery: unknown;
+  queryResult: unknown;
+  validity?: unknown;
+}): Promise<{ verified: boolean; credentialId?: string; attributes?: unknown }> {
+  const token = getToken();
+  if (!token) throw new Error('로그인이 필요합니다');
+  const res = await fetch(`${API_BASE}/wallet/zkpassport`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e.error || e.detail || '속성 증명 검증 실패');
+  }
+  return res.json();
+}
+
 export function setWalletAddress(address: string): void {
   localStorage.setItem('walletAddress', address);
 }
