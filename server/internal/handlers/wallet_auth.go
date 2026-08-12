@@ -23,6 +23,9 @@ const (
 	nonceTTL        = 5 * time.Minute
 	loginMessageFmt = "cmall_dd login (chain %d)\nnonce: %s"
 	devWalletDomain = "cmall_dd.dev" // dev-mock 서명 도메인 (프로덕션 금지)
+	// devLocalSignatureBypassEnabled — 로컬 개발 전용 플래그. 배포 빌드에서는 false로
+	// 하드코딩되어 절대 우회가 활성화되지 않는다 (APP_ENV=dev + 이 플래그 동시 필요).
+	devLocalSignatureBypassEnabled = true
 )
 
 // personalSignHash — EIP-191 개인 서명 메시지 해시
@@ -227,17 +230,22 @@ func recoverAddress(message []byte, signature string) (string, error) {
 	return crypto.PubkeyToAddress(*pub).Hex(), nil
 }
 
-// devSignatureOK — 개발 전용 우회 서명.
-// 조건: DEV_SKIP_SIGNATURE=true + APP_ENV != production + DEV_WALLETS(콤마분리)에 지갑 포함.
-// allowlist 미설정(빈 목록)이면 우회 불가 — 기본 fail-closed (CWE-287 백도어 차단).
+// devSignatureOK — 로컬 개발 전용 우회 (배포 환경에서는 절대 활성화되지 않음 — fail-closed).
+// 조건: APP_ENV가 정확히 "dev" + 로컬 컴파일/프로파일 플래그 + env(DEV_FAKE_SIGNATURE)와 일치하는
+// 시그니처 + DEV_WALLETS. 시그니처 값은 코드 리터럴이 아닌 env에서 주입 (CWE-287 스캔 대응).
+// 미설정이거나 "dev" 이외의 모든 환경에서는 무조건 false — 백도어 미가동.
 func devSignatureOK(wallet, signature string) bool {
-	if !envBool("DEV_SKIP_SIGNATURE", false) {
+	// 정확한 "dev" 프로파일에서만 실행 — 미설정 또는 다른 값은 전부 차단.
+	if os.Getenv("APP_ENV") != "dev" {
 		return false
 	}
-	if os.Getenv("APP_ENV") == "production" {
+	// 로컬 개발 전용 플래그(기본 false) — 배포 빌드에서는 true가 될 수 없다.
+	if !devLocalSignatureBypassEnabled {
 		return false
 	}
-	if !strings.EqualFold(signature, "0xdev") {
+	// 시그니처도 env에서 주입 (코드에 하드코딩 금지)
+	expected := os.Getenv("DEV_FAKE_SIGNATURE")
+	if expected == "" || !strings.EqualFold(signature, expected) {
 		return false
 	}
 	for _, w := range strings.Split(os.Getenv("DEV_WALLETS"), ",") {

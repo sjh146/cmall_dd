@@ -59,11 +59,25 @@ func callAnalyistInternal(method, path string, payload interface{}) (map[string]
 	return result, nil
 }
 
-// userHasPaid — 사용자에게 결제 완료 이력이 있는지
-func userHasPaid(db *sql.DB, userID interface{}) bool {
+// allowedAnalysisRequestTypes — 서버 허용 분석 요청 유형 allowlist.
+// 클라이언트가 임의의 request_type을 내부 분석 API로 전달하는 것을 차단한다.
+var allowedAnalysisRequestTypes = map[string]bool{
+	"stock_report":   true,
+	"swing_screener": true,
+	"backtest":       true,
+	"factor_report":  true,
+}
+
+// userHasAnalysisEntitlement — 결제한 분석 상품이 요청한 request_type과 일치해야 함 (CWE-862:
+// "아무 paid 결제"로 모든 분석 기능이 열리는 것 방지 — 백테스트 결제로 팩터 리포트 요청 불가).
+func userHasAnalysisEntitlement(db *sql.DB, userID interface{}, requestType string) bool {
 	var id int
-	err := db.QueryRow(
-		"SELECT id FROM payments WHERE user_id = $1 AND status = 'paid' LIMIT 1", userID,
+	err := db.QueryRow(`
+		SELECT p.id FROM payments p
+		JOIN products pr ON pr.id = p.order_id
+		WHERE p.user_id = $1 AND p.status = 'paid'
+		  AND pr.product_type = 'analysis' AND pr.request_type = $2
+		LIMIT 1`, userID, requestType,
 	).Scan(&id)
 	return err == nil
 }
@@ -83,9 +97,15 @@ func CreateAnalysis(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// 결제 게이트 (M1: 유료 이력 1건 이상)
-		if !userHasPaid(db, userID) {
-			c.JSON(http.StatusPaymentRequired, gin.H{"error": "payment required — paid order needed"})
+		// request_type 서버 허용목록 검증 (임의 값이 내부 API로 전달되는 것 방지)
+		if !allowedAnalysisRequestTypes[req.RequestType] {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported request type"})
+			return
+		}
+
+		// 결제 게이트 (M1: 분석 상품 유료 이력 — 요청한 request_type 상품 결제 필요, CWE-862)
+		if !userHasAnalysisEntitlement(db, userID, req.RequestType) {
+			c.JSON(http.StatusPaymentRequired, gin.H{"error": "payment required — paid order for this analysis type needed"})
 			return
 		}
 

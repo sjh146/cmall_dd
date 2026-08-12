@@ -47,16 +47,69 @@ func validateOpenClawURL(raw string) (string, error) {
 	if u.Host == "" {
 		return "", fmt.Errorf("URL host is required")
 	}
-	// 내부/링크로컬/프라이빗 IP 차단 (메타데이터 서비스 169.254.169.254 등)
+
 	host := u.Hostname()
+	// Reject non-canonical numeric-only hosts (integer/octal/0x IP forms)
+	// that net.ParseIP does not recognize but resolvers still interpret.
+	if isNumericIPEncoding(host) {
+		return "", fmt.Errorf("non-canonical IP encodings are not allowed")
+	}
+	// Reject canonical literal internal IPs.
 	if ip := net.ParseIP(host); ip != nil {
-		if ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsUnspecified() {
+		if isInternalIP(ip) {
 			return "", fmt.Errorf("internal/private IP addresses are not allowed")
 		}
 	} else if strings.EqualFold(host, "localhost") {
 		return "", fmt.Errorf("localhost is not allowed")
+	} else {
+		// Resolve the hostname server-side and reject if ANY resolved address
+		// is internal/loopback/link-local/unspecified. Blocks DNS-rebinding
+		// and multi-answer hosts that sneak an internal IP into the set.
+		ips, err := net.LookupIP(host)
+		if err != nil {
+			return "", fmt.Errorf("URL host cannot be resolved")
+		}
+		for _, ip := range ips {
+			if isInternalIP(ip) {
+				return "", fmt.Errorf("internal/private IP addresses are not allowed")
+			}
+		}
 	}
 	return u.String(), nil
+}
+
+// isInternalIP reports whether the address is private, loopback,
+// link-local unicast, or unspecified.
+func isInternalIP(ip net.IP) bool {
+	return ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsUnspecified()
+}
+
+// isNumericIPEncoding reports whether the host is a pure numeric-only string
+// (optionally 0x-prefixed), i.e. a non-canonical IP encoding such as
+// 2130706433 (integer) or 017700000001 (octal).
+func isNumericIPEncoding(host string) bool {
+	h := strings.ToLower(host)
+	switch {
+	case strings.HasPrefix(h, "0x"):
+		// hex: 0x[0-9a-f]+
+		if len(h) < 3 {
+			return false
+		}
+		for _, r := range h[2:] {
+			if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f')) {
+				return false
+			}
+		}
+		return true
+	default:
+		// decimal or octal digits only
+		for _, r := range h {
+			if r < '0' || r > '9' {
+				return false
+			}
+		}
+		return h != ""
+	}
 }
 
 // ClickElement handles POST /api/v1/openclaw/click

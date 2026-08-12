@@ -260,6 +260,7 @@ func CreateTables(db *sql.DB) error {
 	// products에 USDC 결제가 컬럼 추가 (기존 price=KRW와 분리 — 단위 혼동 방지)
 	alterProductsUSDC := `
 	ALTER TABLE products ADD COLUMN IF NOT EXISTS crypto_price_usdc BIGINT NOT NULL DEFAULT 0;
+	ALTER TABLE products ADD COLUMN IF NOT EXISTS request_type VARCHAR(32) NOT NULL DEFAULT 'stock_report';
 	`
 	if _, err := db.Exec(alterProductsUSDC); err != nil {
 		return fmt.Errorf("failed to add crypto_price_usdc to products: %w", err)

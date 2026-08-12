@@ -62,6 +62,29 @@ func verifyWithGateway(referenceID string) (map[string]interface{}, error) {
 	return result, nil
 }
 
+// paymentMatchesGateway — 게이트웨이가 반환한 온체인 금액/지갑이 레코드와 일치하는지 검증.
+// amount_usdc (마이크로 단위) 이 payment.AmountUsdc와 동일하고,
+// payer 지갑이 payment.WalletAddress(소문자)와 동일할 때만 true를 반환한다.
+func paymentMatchesGateway(gatewayResult map[string]interface{}, payment *models.Payment) bool {
+	amountOk := false
+	if amtStr, ok := gatewayResult["amount_usdc"].(string); ok {
+		if amt, err := strconv.ParseInt(amtStr, 10, 64); err == nil {
+			amountOk = amt == payment.AmountUsdc
+		}
+	} else if amtNum, ok := gatewayResult["amount_usdc"].(float64); ok {
+		amountOk = int64(amtNum) == payment.AmountUsdc
+	}
+	if !amountOk {
+		return false
+	}
+
+	payer, ok := gatewayResult["payer"].(string)
+	if !ok {
+		return false
+	}
+	return strings.ToLower(strings.TrimSpace(payer)) == payment.WalletAddress
+}
+
 // registerWithGateway — 결제 주문 사전등록 (dev-mock: 게이트웨이 저장; 온체인: owner 서명 registerOrder 준비)
 // 실패해도 결제 생성은 차단하지 않는다 (온체인 등록은 게이트웨이 signer 연동 후 활성화).
 func registerWithGateway(referenceID, walletAddress string, amountUsdc int64) {
@@ -211,6 +234,11 @@ func GetPayment(db *sql.DB) gin.HandlerFunc {
 			}
 			if verified, _ := gatewayResult["verified"].(bool); verified {
 				txHash, _ := gatewayResult["tx_hash"].(string)
+				if !paymentMatchesGateway(gatewayResult, &payment) {
+					// 온체인 금액/지갑이 레코드와 일치하지 않으면 paid 승격 금지
+					c.JSON(http.StatusOK, gin.H{"payment": payment, "verifyError": "on-chain amount or payer does not match the recorded payment"})
+					return
+				}
 				_, err = db.Exec(
 					"UPDATE payments SET status = 'paid', tx_hash = $1, updated_at = NOW() WHERE reference_id = $2",
 					txHash, payment.ReferenceID,

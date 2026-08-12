@@ -233,8 +233,12 @@ export async function getAgents(): Promise<Agent[]> {
 export async function loginWithWallet(ethereum: any, devMode = false): Promise<WalletAuthResponse> {
   let walletAddress: string;
   if (devMode) {
-    // 개발 모드: 임의 주소 사용 (백엔드 DEV_SKIP_SIGNATURE=true 필요)
-    walletAddress = localStorage.getItem('devWalletAddress') || '0x1111111111111111111111111111111111111111';
+    // 개발 모드: 백엔드가 DEV_SKIP_SIGNATURE를 명시적으로 활성화한 경우에만 유효.
+    // 하드코딩된 기본 주소는 제거 — 개발자가 로컬 저장소에 devWalletAddress를 명시해야만 동작.
+    walletAddress = localStorage.getItem('devWalletAddress') || '';
+    if (!walletAddress) {
+      throw new Error('devMode requires an explicit devWalletAddress in localStorage');
+    }
   } else {
     const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
     walletAddress = accounts[0];
