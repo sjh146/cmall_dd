@@ -80,18 +80,20 @@ export function ShoppingCart({
                             variant="outline"
                             size="sm"
                             onClick={() => onUpdateQuantity(item.id, Math.max(0, item.quantity - 1))}
-                            className="h-8 w-8 p-0"
+                            className="h-10 w-10 p-0"
+                            aria-label="수량 줄이기"
                           >
-                            <Minus className="h-3 w-3" />
+                            <Minus className="h-4 w-4" />
                           </Button>
                           <span className="text-sm font-medium w-8 text-center">{item.quantity}</span>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                            className="h-8 w-8 p-0"
+                            className="h-10 w-10 p-0"
+                            aria-label="수량 늘리기"
                           >
-                            <Plus className="h-3 w-3" />
+                            <Plus className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
@@ -100,7 +102,8 @@ export function ShoppingCart({
                           variant="ghost"
                           size="sm"
                           onClick={() => onRemoveItem(item.id)}
-                          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                          className="h-10 w-10 p-0 text-muted-foreground hover:text-destructive"
+                          aria-label="상품 제거"
                         >
                           <X className="h-4 w-4" />
                         </Button>

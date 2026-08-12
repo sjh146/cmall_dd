@@ -90,6 +90,8 @@ export async function humanityNonce(): Promise<{ nonce: string; actionId: string
 export async function humanityVerify(
   proof: string,
   merkleRoot: string,
+  nullifierHash: string,
+  verificationLevel: string,
   signal: string,
   nonce: string
 ): Promise<{ credentialId: string; verificationLevel: string }> {
@@ -98,7 +100,7 @@ export async function humanityVerify(
   const res = await fetch(`${API_BASE}/wallet/humanity/verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ proof, merkleRoot, signal, nonce }),
+    body: JSON.stringify({ proof, merkleRoot, nullifierHash, verificationLevel, signal, nonce }),
   });
   if (!res.ok) {
     const e = await res.json().catch(() => ({}));

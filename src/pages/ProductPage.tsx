@@ -154,7 +154,7 @@ export default function ProductPage() {
   return (
     <div className={`min-h-screen ${theme.bg}`}>
       {/* Header */}
-      <div className="border-b border-[#262626] bg-[#0a0a0a]/80 backdrop-blur-sm sticky top-0 z-40">
+      <div className="border-b border-[#262626] bg-[#0a0a0a] sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <button
             onClick={() => navigate(-1)}

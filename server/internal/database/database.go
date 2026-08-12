@@ -261,6 +261,7 @@ func CreateTables(db *sql.DB) error {
 	alterProductsUSDC := `
 	ALTER TABLE products ADD COLUMN IF NOT EXISTS crypto_price_usdc BIGINT NOT NULL DEFAULT 0;
 	ALTER TABLE products ADD COLUMN IF NOT EXISTS request_type VARCHAR(32) NOT NULL DEFAULT 'stock_report';
+	ALTER TABLE products ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
 	`
 	if _, err := db.Exec(alterProductsUSDC); err != nil {
 		return fmt.Errorf("failed to add crypto_price_usdc to products: %w", err)

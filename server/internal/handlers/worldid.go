@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gin-gonic/gin"
 )
 
@@ -25,10 +27,12 @@ func mustRandomHex8() string {
 }
 
 // worldIDConfig — env에서 앱 설정 (미설정 시 fail-closed 503)
-func worldIDConfig() (appID, actionID string, ok bool) {
+// RP ID: 신규 포털(developer.world.org) — v4 verify에 사용. app_id는 프론트 위젯용(하위호환).
+func worldIDConfig() (appID, rpID, actionID string, ok bool) {
 	appID = os.Getenv("WORLD_ID_APP_ID")
+	rpID = os.Getenv("WORLD_ID_RP_ID")
 	actionID = os.Getenv("WORLD_ID_ACTION_ID")
-	ok = appID != "" && actionID != ""
+	ok = appID != "" && rpID != "" && actionID != ""
 	return
 }
 
@@ -120,7 +124,7 @@ func ZKPassportVerify(db *sql.DB) gin.HandlerFunc {
 // 프론트가 app_id/action_id를 주입받기 위한 공개 설정 (app_id는 위젯에 이미 노출되는 값 — 비밀 아님)
 func WorldIDPublicConfig(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		appID, actionID, ok := worldIDConfig()
+		appID, _, actionID, ok := worldIDConfig()
 		if !ok {
 			c.JSON(http.StatusOK, gin.H{"enabled": false})
 			return
@@ -137,7 +141,7 @@ func WorldIDPublicConfig(db *sql.DB) gin.HandlerFunc {
 // World ID 프루프 생성용 nonce 발급 (single-use, 5분 TTL, challenge_type=worldid)
 func HumanityNonce(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		_, _, ok := worldIDConfig()
+		_, _, _, ok := worldIDConfig()
 		if !ok {
 			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "World ID not configured"})
 			return
@@ -167,7 +171,7 @@ func HumanityNonce(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		_, actionID, _ := worldIDConfig()
+		_, _, actionID, _ := worldIDConfig()
 		c.JSON(http.StatusOK, gin.H{
 			"nonce":      nonce,
 			"action_id":  actionID,
@@ -177,10 +181,10 @@ func HumanityNonce(db *sql.DB) gin.HandlerFunc {
 }
 
 // HumanityVerify — POST /api/v1/wallet/humanity/verify (JWT)
-// World ID Cloud Verify로 프루프 검증 → nullifier_hash를 wallets에 바인딩 (1인 1계정).
+// World ID v4 Verify API(rp_id)로 프루프 검증 → nullifier_hash를 wallets에 바인딩 (1인 1계정).
 func HumanityVerify(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		appID, actionID, ok := worldIDConfig()
+		appID, rpID, actionID, ok := worldIDConfig()
 		if !ok {
 			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "World ID not configured"})
 			return
@@ -190,13 +194,15 @@ func HumanityVerify(db *sql.DB) gin.HandlerFunc {
 		wallet := strings.ToLower(fmt.Sprintf("%v", walletAddr))
 
 		var req struct {
-			Nonce      string `json:"nonce" binding:"required"`
-			Proof      string `json:"proof" binding:"required"`
-			MerkleRoot string `json:"merkleRoot" binding:"required"`
-			Signal     string `json:"signal" binding:"required"`
+			Nonce             string `json:"nonce" binding:"required"`
+			Proof             string `json:"proof" binding:"required"`
+			MerkleRoot        string `json:"merkleRoot" binding:"required"`
+			NullifierHash     string `json:"nullifierHash" binding:"required"`
+			VerificationLevel string `json:"verificationLevel" binding:"required"`
+			Signal            string `json:"signal" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "nonce/proof/merkleRoot/signal required"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "nonce/proof/merkleRoot/nullifierHash/verificationLevel/signal required"})
 			return
 		}
 
@@ -222,45 +228,90 @@ func HumanityVerify(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// ③ World ID Cloud Verify 호출 (자체 ZK 없음 — 검증된 SDK 인프라)
-		body, _ := json.Marshal(map[string]string{
-			"merkle_root":        req.MerkleRoot,
-			"nullifier_hash":     "",
-			"proof":              req.Proof,
-			"verification_level": "device",
-			"action":             actionID,
-			"signal":             wallet,
+		// ③ World ID v4 Verify API (rp_id) — IDKit 결과를 그대로 전달 (legacy 3.0 proof)
+		// signal_hash = keccak256(signal) — 지갑 주소 바인딩 (프루프가 특정 지갑에 고정)
+		signalHash := "0x" + hex.EncodeToString(crypto.Keccak256([]byte(wallet)))
+		body, _ := json.Marshal(map[string]interface{}{
+			"protocol_version": "3.0",
+			"nonce":            req.Nonce,
+			"action":           actionID,
+			"environment":      "production",
+			"responses": []map[string]interface{}{{
+				"identifier":  req.VerificationLevel,
+				"merkle_root": req.MerkleRoot,
+				"nullifier":   req.NullifierHash,
+				"proof":       req.Proof,
+				"signal_hash": signalHash,
+			}},
 		})
-		verifyReq, _ := http.NewRequest(http.MethodPost,
-			"https://developer.worldcoin.org/api/v1/verify/"+appID, bytes.NewReader(body))
-		verifyReq.Header.Set("Content-Type", "application/json")
 		client := &http.Client{Timeout: 15 * time.Second}
-		resp, err := client.Do(verifyReq)
+
+		verify := func(url string, payload []byte) (*http.Response, []byte, error) {
+			req, _ := http.NewRequest(http.MethodPost, url, bytes.NewReader(payload))
+			req.Header.Set("Content-Type", "application/json")
+			resp, err := client.Do(req)
+			if err != nil {
+				return nil, nil, err
+			}
+			defer resp.Body.Close()
+			b, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+			return resp, b, nil
+		}
+
+		var wv struct {
+			Success       bool   `json:"success"`
+			Nullifier     string `json:"nullifier"`
+			NullifierHash string `json:"nullifier_hash"`
+			Detail        string `json:"detail"`
+		}
+
+		// v4 우선 시도 (rp_id) — 앱이 4.0 미마이그레이션이면 v2로 폴백
+		resp, respBody, err := verify("https://developer.world.org/api/v4/verify/"+rpID, body)
 		if err != nil {
 			c.JSON(http.StatusBadGateway, gin.H{"error": "World ID verification unavailable"})
 			return
 		}
-		defer resp.Body.Close()
-		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-
-		var wv struct {
-			Success       bool   `json:"success"`
-			NullifierHash string `json:"nullifier_hash"`
-			Detail        string `json:"detail"`
-		}
 		_ = json.Unmarshal(respBody, &wv)
+		if resp.StatusCode == http.StatusBadRequest && strings.Contains(wv.Detail, "not been migrated") {
+			// v2 폴백: legacy Cloud Verify (app_id, action, signal)
+			body2, _ := json.Marshal(map[string]string{
+				"merkle_root":        req.MerkleRoot,
+				"nullifier_hash":     req.NullifierHash,
+				"proof":              req.Proof,
+				"verification_level": req.VerificationLevel,
+				"action":             actionID,
+				"signal":             wallet,
+			})
+			resp2, respBody2, err2 := verify("https://developer.world.org/api/v2/verify/"+appID, body2)
+			if err2 != nil {
+				c.JSON(http.StatusBadGateway, gin.H{"error": "World ID verification unavailable"})
+				return
+			}
+			wv = struct {
+				Success       bool   `json:"success"`
+				Nullifier     string `json:"nullifier"`
+				NullifierHash string `json:"nullifier_hash"`
+				Detail        string `json:"detail"`
+			}{}
+			_ = json.Unmarshal(respBody2, &wv)
+			resp = resp2
+		}
 
-		if resp.StatusCode != http.StatusOK || !wv.Success || wv.NullifierHash == "" {
+		nullifier := wv.Nullifier
+		if nullifier == "" {
+			nullifier = wv.NullifierHash
+		}
+
+		if resp.StatusCode != http.StatusOK || !wv.Success || nullifier == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "World ID verification failed", "detail": wv.Detail})
 			return
 		}
 
 		// ④ nullifier_hash 저장 — UNIQUE (1인 1계정), 프루프 원문은 저장 안 함
-		// 기존 지갑에 바인딩: wallets(user_id, wallet_address) 레코드가 있어야 함 (wallet/connect 선행)
 		var credentialID string
 		err = db.QueryRow(`
 			INSERT INTO wallets (user_id, wallet_address, credential_id, verification_result, nullifier_hash, verification_level)
-			VALUES ($1, $2, $3, 'verified', $4, 'device')
+			VALUES ($1, $2, $3, 'verified', $4, $5)
 			ON CONFLICT (wallet_address) DO UPDATE
 				SET credential_id = EXCLUDED.credential_id,
 				    nullifier_hash = EXCLUDED.nullifier_hash,
@@ -268,7 +319,7 @@ func HumanityVerify(db *sql.DB) gin.HandlerFunc {
 				    verification_result = 'verified',
 				    updated_at = NOW()
 			RETURNING credential_id
-		`, userID, wallet, "wid_"+wv.NullifierHash, wv.NullifierHash).Scan(&credentialID)
+		`, userID, wallet, "wid_"+nullifier, nullifier, req.VerificationLevel).Scan(&credentialID)
 		if err != nil {
 			// nullifier_hash 중복(UNIQUE) = 이미 다른 계정에서 사용 — 1인 1계정 위반
 			c.JSON(http.StatusConflict, gin.H{"error": "this World ID is already bound to another account"})
@@ -278,7 +329,7 @@ func HumanityVerify(db *sql.DB) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{
 			"verified":           true,
 			"credential_id":      credentialID,
-			"verification_level": "device",
+			"verification_level": req.VerificationLevel,
 			"wallet_address":     wallet,
 			"bound":              true,
 		})

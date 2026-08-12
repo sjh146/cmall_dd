@@ -44,6 +44,7 @@ func GetProducts(db *sql.DB) gin.HandlerFunc {
 			       version, download_url, file_size, license_key, description, features,
 			       system_requirements, created_at, updated_at
 			FROM products
+			WHERE is_active = true
 			ORDER BY created_at DESC
 		`
 
@@ -91,7 +92,7 @@ func GetProduct(db *sql.DB) gin.HandlerFunc {
 			       version, download_url, file_size, license_key, description, features,
 			       system_requirements, created_at, updated_at
 			FROM products
-			WHERE id = $1
+			WHERE id = $1 AND is_active = true
 		`
 
 		var p models.Product

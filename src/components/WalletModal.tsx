@@ -91,7 +91,14 @@ export default function WalletModal({ devMode = false }: { devMode?: boolean }) 
       const wallet = getWalletAddress();
       if (!wallet) throw new Error('지갑 연결이 필요합니다');
       const { nonce } = await humanityNonce();
-      const cred = await humanityVerify(result.proof, result.merkle_root, wallet, nonce);
+      const cred = await humanityVerify(
+        result.proof,
+        result.merkle_root,
+        result.nullifier_hash,
+        result.verification_level,
+        wallet,
+        nonce
+      );
       localStorage.setItem('humanityCredential', cred.credentialId);
       setHumanity(cred.credentialId);
     } catch (e: any) {
