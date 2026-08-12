@@ -78,7 +78,7 @@ func (h *Handler) ClickElement(c *gin.Context) {
 	}
 
 	// Attempt to click with retry (takes snapshot if element not found)
-	err := h.client.ClickElementWithRetry(req.ElementID, req.Kind, req.URL)
+	err = h.client.ClickElementWithRetry(req.ElementID, req.Kind, req.URL)
 	if err != nil {
 		if e, ok := err.(*Error); ok {
 			statusCode := http.StatusInternalServerError

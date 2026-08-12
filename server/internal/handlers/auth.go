@@ -3,7 +3,6 @@ package handlers
 import (
 	"database/sql"
 	"net/http"
-	"os"
 	"strconv"
 
 	"cmall_dd/internal/models"
