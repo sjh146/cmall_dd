@@ -125,6 +125,8 @@ func main() {
 
 		// AI 에이전트 상품 목록 (public)
 		api.GET("/agents", handlers.GetAgents(db))
+		// M2-1: World ID 공개 설정 (프론트 위젯 주입용)
+		api.GET("/config/worldid", handlers.WorldIDPublicConfig(db))
 
 		// OpenClaw browser automation routes (인증 필수 — SSRF/CWE-918 대응)
 		openclawBaseURL := os.Getenv("OPENCLAW_BASE_URL")

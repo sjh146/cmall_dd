@@ -26,6 +26,23 @@ func worldIDConfig() (appID, actionID string, ok bool) {
 	return
 }
 
+// WorldIDPublicConfig — GET /api/v1/config/worldid (공개)
+// 프론트가 app_id/action_id를 주입받기 위한 공개 설정 (app_id는 위젯에 이미 노출되는 값 — 비밀 아님)
+func WorldIDPublicConfig(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		appID, actionID, ok := worldIDConfig()
+		if !ok {
+			c.JSON(http.StatusOK, gin.H{"enabled": false})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"enabled":   true,
+			"app_id":    appID,
+			"action_id": actionID,
+		})
+	}
+}
+
 // HumanityNonce — POST /api/v1/wallet/humanity/nonce
 // World ID 프루프 생성용 nonce 발급 (single-use, 5분 TTL, challenge_type=worldid)
 func HumanityNonce(db *sql.DB) gin.HandlerFunc {

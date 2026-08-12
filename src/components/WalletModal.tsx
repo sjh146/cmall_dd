@@ -1,21 +1,38 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { IDKitWidget, VerificationLevel, type ISuccessResult } from '@worldcoin/idkit';
 import {
   loginWithWallet,
   getWalletAddress,
+  fetchWorldIDConfig,
+  humanityNonce,
+  humanityVerify,
 } from '../lib/paymentApi';
 import { logout, getToken, removeToken, removeCurrentUser } from '../lib/api';
 
 /**
- * WalletModal — ZK 지갑 연결/해제 UI (M3)
+ * WalletModal — ZK 지갑 연결/해제 UI (M3) + 인간 증명 (M2-1)
  * - 실제 지갑(MetaMask) 또는 개발 모드(devMode) 지원
- * - 연결 상태를 localStorage에 유지
+ * - World ID 인간 증명: devMode는 로컬 모의, 실모드는 IDKit 위젯 (config 없으면 비활성)
  */
 export default function WalletModal({ devMode = false }: { devMode?: boolean }) {
   const [address, setAddress] = useState<string | null>(getWalletAddress());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [humanity, setHumanity] = useState<string | null>(localStorage.getItem('humanityCredential'));
+  const [widEnabled, setWidEnabled] = useState(false);
+  const [widAppId, setWidAppId] = useState('');
+  const [widAction, setWidAction] = useState('');
+  const [humanityLoading, setHumanityLoading] = useState(false);
 
   const ethereum = (window as any).ethereum;
+
+  useEffect(() => {
+    fetchWorldIDConfig().then((cfg) => {
+      setWidEnabled(cfg.enabled);
+      setWidAppId(cfg.app_id || '');
+      setWidAction(cfg.action_id || '');
+    });
+  }, []);
 
   async function handleConnect() {
     setLoading(true);
@@ -36,7 +53,38 @@ export default function WalletModal({ devMode = false }: { devMode?: boolean }) 
   function handleLogout() {
     logout();
     removeWalletAddress();
+    localStorage.removeItem('humanityCredential');
     setAddress(null);
+    setHumanity(null);
+  }
+
+  /** devMode 인간 증명 모의 (로컬 플래그만 — 서버 검증 없음) */
+  function mockHumanity() {
+    setHumanityLoading(true);
+    setError(null);
+    setTimeout(() => {
+      localStorage.setItem('humanityCredential', 'dev-mock-humanity');
+      setHumanity('dev-mock-humanity');
+      setHumanityLoading(false);
+    }, 300);
+  }
+
+  /** 실모드: World ID 프루프 검증 (nonce 바인딩) */
+  async function handleWorldIDSuccess(result: ISuccessResult) {
+    setHumanityLoading(true);
+    setError(null);
+    try {
+      const wallet = getWalletAddress();
+      if (!wallet) throw new Error('지갑 연결이 필요합니다');
+      const { nonce } = await humanityNonce();
+      const cred = await humanityVerify(result.proof, result.merkle_root, wallet, nonce);
+      localStorage.setItem('humanityCredential', cred.credentialId);
+      setHumanity(cred.credentialId);
+    } catch (e: any) {
+      setError(e.message || '인간 증명 실패');
+    } finally {
+      setHumanityLoading(false);
+    }
   }
 
   if (!getToken()) {
@@ -50,15 +98,54 @@ export default function WalletModal({ devMode = false }: { devMode?: boolean }) 
 
   if (address) {
     return (
-      <div className="p-4 border rounded-lg bg-green-50">
-        <p className="text-sm font-medium">✅ 지갑 연결됨</p>
-        <p className="text-xs text-gray-600 break-all mb-2">{address}</p>
+      <div className="p-4 border rounded-lg bg-green-50 space-y-3">
+        <div>
+          <p className="text-sm font-medium">✅ 지갑 연결됨</p>
+          <p className="text-xs text-gray-600 break-all">{address}</p>
+        </div>
+        <div className="border-t border-green-200 pt-3">
+          <p className="text-sm font-medium mb-1">
+            {humanity ? '✅ 인간 증명 완료' : '🧑 인간 증명 (World ID)'}
+          </p>
+          {humanity ? (
+            <p className="text-xs text-gray-600 break-all">{humanity}</p>
+          ) : devMode ? (
+            <button
+              onClick={mockHumanity}
+              disabled={humanityLoading}
+              className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs disabled:opacity-50"
+            >
+              {humanityLoading ? '처리 중...' : '개발모드 인간 증명 완료'}
+            </button>
+          ) : widEnabled ? (
+            <IDKitWidget
+              app_id={widAppId}
+              action={widAction}
+              signal={address}
+              verification_level={VerificationLevel.Device}
+              onSuccess={handleWorldIDSuccess}
+            >
+              {({ open }) => (
+                <button
+                  onClick={open}
+                  disabled={humanityLoading}
+                  className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs disabled:opacity-50"
+                >
+                  {humanityLoading ? '검증 중...' : 'World ID로 인간 증명'}
+                </button>
+              )}
+            </IDKitWidget>
+          ) : (
+            <p className="text-xs text-gray-500">World ID 미설정 — 관리자에게 문의하세요.</p>
+          )}
+        </div>
         <button
           onClick={handleLogout}
           className="text-xs text-red-600 underline"
         >
           연결 해제
         </button>
+        {error && <p className="text-xs text-red-600">{error}</p>}
       </div>
     );
   }

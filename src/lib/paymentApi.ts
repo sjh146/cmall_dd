@@ -61,6 +61,53 @@ export function getWalletAddress(): string | null {
   return localStorage.getItem('walletAddress');
 }
 
+/** World ID 공개 설정 조회 (M2-1) — {enabled, app_id, action_id} */
+export async function fetchWorldIDConfig(): Promise<{ enabled: boolean; app_id?: string; action_id?: string }> {
+  const res = await fetch(`${API_BASE}/config/worldid`);
+  if (!res.ok) return { enabled: false };
+  return res.json();
+}
+
+/** World ID 인간 증명 nonce 발급 (JWT) — {nonce, action_id, expires_at} */
+export async function humanityNonce(): Promise<{ nonce: string; actionId: string; expiresAt: string }> {
+  const token = getToken();
+  const wallet = getWalletAddress();
+  if (!token || !wallet) throw new Error('로그인과 지갑 연결이 필요합니다');
+  const res = await fetch(`${API_BASE}/wallet/humanity/nonce`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ walletAddress: wallet }),
+  });
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e.error || 'nonce 발급 실패');
+  }
+  const d = await res.json();
+  return { nonce: d.nonce, actionId: d.action_id, expiresAt: d.expires_at };
+}
+
+/** World ID 인간 증명 검증 (JWT) — {credential_id, verification_level} */
+export async function humanityVerify(
+  proof: string,
+  merkleRoot: string,
+  signal: string,
+  nonce: string
+): Promise<{ credentialId: string; verificationLevel: string }> {
+  const token = getToken();
+  if (!token) throw new Error('로그인이 필요합니다');
+  const res = await fetch(`${API_BASE}/wallet/humanity/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ proof, merkleRoot, signal, nonce }),
+  });
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e.error || e.detail || '인간 증명 검증 실패');
+  }
+  const d = await res.json();
+  return { credentialId: d.credential_id, verificationLevel: d.verification_level };
+}
+
 export function setWalletAddress(address: string): void {
   localStorage.setItem('walletAddress', address);
 }
