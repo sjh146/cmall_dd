@@ -11,6 +11,7 @@ import {
   getPayment,
   createAnalysis,
   getWalletAddress,
+  loginWithWallet,
   payWithContract,
   pollPaymentUntilPaid,
   pollAnalysisUntilDone,
@@ -52,8 +53,25 @@ export default function AnalysisPurchase({ agent }: { agent: Agent }) {
     setError(null);
     setMessage(null);
     try {
-      if (!getWalletAddress()) {
+      const walletAddr = getWalletAddress();
+      if (!walletAddr) {
         throw new Error('먼저 지갑을 연결하세요 (로그인 후 연결).');
+      }
+      // 지갑 세션 자동 복원: 이메일 로그인이 토큰을 덮어썼으면(지갑 클레임 소실)
+      // 결제 전에 지갑 세션으로 재인증한다. (실측: 지갑 연결 후 이메일 재로그인 → 400 wallet not connected)
+      const kind = getWalletProviderKind();
+      if (kind === 'address') {
+        // dev 주소 경로: 무서명 재인증 (DEV_SKIP_SIGNATURE)
+        await loginWithWallet(null, true, walletAddr);
+      } else {
+        const active = await getActiveProvider();
+        if (active) {
+          try {
+            await loginWithWallet(active.provider, false);
+          } catch {
+            /* 서명 거부 시 기존 토큰으로 진행 — 백엔드가 거부하면 아래에서 안내 */
+          }
+        }
       }
       const resp = addressOnly
         ? await createPaymentDev(agent.id)

@@ -3,6 +3,7 @@ import { IDKitWidget, VerificationLevel, type ISuccessResult } from '@worldcoin/
 import {
   loginWithWallet,
   getWalletAddress,
+  removeWalletAddress,
   fetchWorldIDConfig,
   humanityNonce,
   humanityVerify,
