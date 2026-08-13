@@ -215,6 +215,35 @@ export async function createPayment(productId: number): Promise<CreatePaymentRes
   return response.json();
 }
 
+/** 운영자 대행 결제 주문 생성 (MetaMask 없는 주소 연결 사용자 — dev 전용) */
+export async function createPaymentDev(productId: number): Promise<CreatePaymentResult> {
+  const token = getToken();
+  const response = await fetch(`${API_BASE_URL}/payments/create`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ productId, payerMode: 'operator' }),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to create payment');
+  }
+  return response.json();
+}
+
+/** 운영자 대행 결제 실행 (dev 전용 — approve+pay를 운영자 키로 대신 수행) */
+export async function devPay(referenceId: string): Promise<{ ok: boolean; txHash?: string }> {
+  const token = getToken();
+  const response = await fetch(`${API_BASE_URL}/payments/${referenceId}/dev-pay`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.error || 'dev-pay failed');
+  }
+  return response.json();
+}
+
 export async function getPayment(referenceId: string): Promise<PaymentResponse> {
   const token = getToken();
   const response = await fetch(`${API_BASE_URL}/payments/${referenceId}`, {

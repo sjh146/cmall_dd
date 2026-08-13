@@ -119,6 +119,8 @@ func main() {
 			protected.POST("/wallet/humanity/verify", handlers.HumanityVerify(db))
 			// M2-2: ZKPassport 속성 증명 (gateway로 검증 위임)
 			protected.POST("/wallet/zkpassport", handlers.ZKPassportVerify(db))
+			// 운영자 대행 결제 (MetaMask 없는 주소 연결 사용자 — dev 전용)
+			protected.POST("/payments/:referenceId/dev-pay", handlers.DevPayPayment(db))
 			protected.POST("/payments/create", handlers.CreatePayment(db))
 			protected.GET("/payments/:referenceId", handlers.GetPayment(db))
 			protected.POST("/analysis", handlers.CreateAnalysis(db))

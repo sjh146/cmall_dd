@@ -263,6 +263,9 @@ type WalletAuthResponse struct {
 
 type CreatePaymentRequest struct {
 	ProductID int `json:"productId" binding:"required"`
+	// PayerMode "operator": MetaMask 없는 사용자 — 운영자 지갑이 결제 대행 (dev 전용).
+	// create 시 payer=운영자로 등록되며, dev-pay로 운영자 키가 approve+pay를 실행한다.
+	PayerMode string `json:"payerMode"`
 }
 
 type PaymentResponse struct {

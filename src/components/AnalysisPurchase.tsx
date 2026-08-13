@@ -6,6 +6,8 @@
 import { useState } from 'react';
 import {
   createPayment,
+  createPaymentDev,
+  devPay,
   getPayment,
   createAnalysis,
   getWalletAddress,
@@ -41,6 +43,8 @@ export default function AnalysisPurchase({ agent }: { agent: Agent }) {
   const [error, setError] = useState<string | null>(null);
 
   const requestType = agent.requestType || 'stock_report';
+  // MetaMask 없는 사용자(주소만 연결) → 운영자 대행 결제(dev) 사용
+  const addressOnly = typeof window !== 'undefined' && !(window as any).ethereum;
 
   async function handleBuy() {
     setLoading(true);
@@ -50,17 +54,49 @@ export default function AnalysisPurchase({ agent }: { agent: Agent }) {
       if (!getWalletAddress()) {
         throw new Error('먼저 지갑을 연결하세요 (로그인 후 연결).');
       }
-      const resp = await createPayment(agent.id);
+      const resp = addressOnly
+        ? await createPaymentDev(agent.id)
+        : await createPayment(agent.id);
       setPayment(resp);
       setContractAddress(resp.contractAddress || null);
       setTokenAddress(resp.tokenAddress || null);
       setMessage(
-        `결제 주문이 생성됐습니다. 아래 '지갑에서 결제하기'로 ${fmtUsdc(agent.cryptoPriceUsdc)}를 컨트랙트에 직접 결제하세요.`
+        addressOnly
+          ? `결제 주문이 생성됐습니다. 아래 '주소로 결제'를 누르면 운영자 지갑이 결제를 대행합니다 (테스트넷 데모).`
+          : `결제 주문이 생성됐습니다. 아래 '지갑에서 결제하기'로 ${fmtUsdc(agent.cryptoPriceUsdc)}를 컨트랙트에 직접 결제하세요.`
       );
     } catch (e: any) {
       setError(e.message || '결제 실패');
     } finally {
       setLoading(false);
+    }
+  }
+
+  /** 주소만 연결한 사용자: 운영자 키로 approve+pay 대행 → paid 폴링 */
+  async function handleDevPay() {
+    if (!payment) {
+      setError('결제 주문이 없습니다. 먼저 결제 주문을 생성하세요.');
+      return;
+    }
+    setPaying(true);
+    setError(null);
+    setMessage(null);
+    try {
+      setMessage('운영자 지갑이 온체인 결제를 실행합니다 (approve + pay)...');
+      const res = await devPay(payment.referenceId);
+      setMessage(`✅ 결제 트랜잭션 전송됨: ${(res.txHash || '').slice(0, 18)}… — 검증 대기 중...`);
+      const paid = await pollPaymentUntilPaid(payment.referenceId, {
+        intervalMs: 3000,
+        timeoutMs: 180_000,
+        onStatus: (s) => setMessage(`결제 검증 폴링 중... (상태: ${s})`),
+      });
+      setPayment(paid);
+      setMessage(`🎉 결제 완료! (${fmtUsdc(paid.amountUsdc)}) — 구매한 분석을 자동 실행합니다.`);
+      await runAnalysis(requestType, symbol);
+    } catch (e: any) {
+      setError(e.message || '대행 결제 실패');
+    } finally {
+      setPaying(false);
     }
   }
 
@@ -202,13 +238,23 @@ export default function AnalysisPurchase({ agent }: { agent: Agent }) {
           )}
           {payment.status === 'pending' && (
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={handlePayWithWallet}
-                disabled={paying || loading}
-                className={`px-4 py-2 ${c.accentBg} text-black rounded-lg text-sm font-semibold disabled:opacity-50`}
-              >
-                {paying ? '결제 진행 중...' : '지갑에서 결제하기'}
-              </button>
+              {addressOnly ? (
+                <button
+                  onClick={handleDevPay}
+                  disabled={paying || loading}
+                  className={`px-4 py-2 ${c.accentBg} text-black rounded-lg text-sm font-semibold disabled:opacity-50`}
+                >
+                  {paying ? '결제 실행 중...' : '주소로 결제 (운영자 대행)'}
+                </button>
+              ) : (
+                <button
+                  onClick={handlePayWithWallet}
+                  disabled={paying || loading}
+                  className={`px-4 py-2 ${c.accentBg} text-black rounded-lg text-sm font-semibold disabled:opacity-50`}
+                >
+                  {paying ? '결제 진행 중...' : '지갑에서 결제하기'}
+                </button>
+              )}
               <button
                 onClick={handleRefreshPayment}
                 disabled={loading}

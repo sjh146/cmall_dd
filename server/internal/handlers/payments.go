@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"cmall_dd/internal/models"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/gin-gonic/gin"
 )
 
@@ -169,6 +170,26 @@ func CreatePayment(db *sql.DB) gin.HandlerFunc {
 			}
 		}
 
+		// 운영자 대행 결제 모드 (MetaMask 없는 사용자 — 주소만 연결) — dev 전용
+		// pay()가 payer 바인딩을 강제하므로, 주문을 운영자 지갑(payer)으로 등록해야
+		// dev-pay(운영자 키 approve+pay)가 성립한다. 결제 주체는 운영자 테스트 지갑.
+		if req.PayerMode == "operator" {
+			if os.Getenv("APP_ENV") != "dev" {
+				c.JSON(http.StatusForbidden, gin.H{"error": "operator payer mode is dev-only"})
+				return
+			}
+			operator := os.Getenv("DEV_PAYER_WALLET")
+			if operator == "" {
+				// 기본값: 배포 지갑 (운영자 키 소유) — .env에 DEV_PAYER_WALLET 명시 권장
+				operator = "0x519c8b06D8E57969B4886e1028863BcDb0C425c4"
+			}
+			if !common.IsHexAddress(operator) {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "DEV_PAYER_WALLET misconfigured"})
+				return
+			}
+			wallet = strings.ToLower(operator)
+		}
+
 		// reference_id + 레코드 생성
 		ref, err := randomHex(16)
 		if err != nil {
@@ -303,8 +324,83 @@ func GetAgents(db *sql.DB) gin.HandlerFunc {
 				&features, &systemReq, &a.CryptoPriceUsdc, &createdAt, &updatedAt); err != nil {
 				continue
 			}
-			agents = append(agents, a)
+		agents = append(agents, a)
+	}
+	c.JSON(http.StatusOK, gin.H{"agents": agents})
+	}
+}
+
+// DevPayPayment — POST /api/v1/payments/:referenceId/dev-pay (dev 전용)
+// MetaMask 없이 주소만 연결한 사용자의 결제를 운영자 키로 대행 실행.
+// 게이트웨이 /execute가 approve+pay를 수행하고, 상태 승격은 GetPayment의
+// 상태기반 verify 폴링으로 반영된다. (2026-08-13 사용자 요청)
+func DevPayPayment(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if os.Getenv("APP_ENV") != "dev" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "dev-pay is dev-only"})
+			return
 		}
-		c.JSON(http.StatusOK, gin.H{"agents": agents})
+		userID, _ := c.Get("userId")
+		referenceID := c.Param("referenceId")
+
+		var ownerID int64
+		var status string
+		err := db.QueryRow(
+			"SELECT user_id, status FROM payments WHERE reference_id = $1", referenceID,
+		).Scan(&ownerID, &status)
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "payment not found"})
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load payment"})
+			return
+		}
+		if fmt.Sprintf("%v", ownerID) != fmt.Sprintf("%v", userID) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "not your payment"})
+			return
+		}
+		if status != "pending" {
+			c.JSON(http.StatusConflict, gin.H{"error": "payment not pending"})
+			return
+		}
+
+		// 게이트웨이에 운영자 대행 결제 실행 요청
+		base := gatewayURL()
+		if base == "" {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "gateway not configured"})
+			return
+		}
+		body, _ := json.Marshal(map[string]interface{}{"reference_id": referenceID})
+		req, err := http.NewRequest(http.MethodPost, base+"/internal/blockchain/payment/execute", bytes.NewReader(body))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "request build failed"})
+			return
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Internal-Api-Key", internalKey("INTERNAL_API_KEY"))
+
+		client := &http.Client{Timeout: 150 * time.Second}
+		resp, err := client.Do(req)
+		if err != nil {
+			c.JSON(http.StatusBadGateway, gin.H{"error": "gateway execute failed"})
+			return
+		}
+		defer resp.Body.Close()
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<16))
+
+		var gw struct {
+			Ok     bool   `json:"ok"`
+			TxHash string `json:"tx_hash"`
+			Error  string `json:"error"`
+		}
+		_ = json.Unmarshal(respBody, &gw)
+		if resp.StatusCode != http.StatusOK || !gw.Ok {
+			log.Printf("[payments] dev-pay failed (ref=%s): %d %s", referenceID, resp.StatusCode, string(respBody))
+			c.JSON(http.StatusBadGateway, gin.H{"error": "onchain execute failed: " + gw.Error})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"ok": true, "txHash": gw.TxHash})
 	}
 }
