@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -24,10 +25,14 @@ func analyistURL() string {
 }
 
 // callAnalyistInternal — analyist_dd 내부 API 호출 (X-Internal-Api-Key)
+// 연결 실패는 errAnalyistUnreachable로 구분 — 일시 다운과 실제 오류를 나눠
+// cmall 웹이 분석 서비스 장애에 견고하도록 한다 (2026-08-13).
+var errAnalyistUnreachable = errors.New("analyist unreachable")
+
 func callAnalyistInternal(method, path string, payload interface{}) (map[string]interface{}, error) {
 	base := analyistURL()
 	if base == "" {
-		return nil, fmt.Errorf("ANALYIST_API_URL not set")
+		return nil, errAnalyistUnreachable
 	}
 	var body io.Reader
 	if payload != nil {
@@ -41,10 +46,10 @@ func callAnalyistInternal(method, path string, payload interface{}) (map[string]
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Internal-Api-Key", internalKey("ANALYIST_INTERNAL_KEY"))
 
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", errAnalyistUnreachable, err)
 	}
 	defer resp.Body.Close()
 
@@ -135,12 +140,25 @@ func CreateAnalysis(db *sql.DB) gin.HandlerFunc {
 			})
 
 			if callErr != nil {
-				_, _ = db.Exec(
-					"UPDATE analysis_requests SET status = 'failed', error = $1, updated_at = NOW() WHERE id = $2",
-					callErr.Error(), reqRec.ID,
-				)
-				reqRec.Status = "failed"
-				reqRec.Error = callErr.Error()
+				if errors.Is(callErr, errAnalyistUnreachable) {
+					// 게이트웨이 일시 다운 — 실패로 끝내지 않고 queued 유지,
+					// GetAnalysis 폴링에서 자동 재제출 (웹은 영향 없음)
+					note := "제출 대기 중 (분석 서비스 재시작 중): " + callErr.Error()
+					_, _ = db.Exec(
+						"UPDATE analysis_requests SET status = 'queued', error = $1, updated_at = NOW() WHERE id = $2",
+						note, reqRec.ID,
+					)
+					reqRec.Status = "queued"
+					reqRec.Error = note
+				} else {
+					// 실제 오류 (잘못된 심볼 등) — 명확히 실패 처리
+					_, _ = db.Exec(
+						"UPDATE analysis_requests SET status = 'failed', error = $1, updated_at = NOW() WHERE id = $2",
+						callErr.Error(), reqRec.ID,
+					)
+					reqRec.Status = "failed"
+					reqRec.Error = callErr.Error()
+				}
 			} else {
 				internalID, _ := internalResult["request_id"].(string)
 				status, _ := internalResult["status"].(string)
@@ -212,7 +230,77 @@ func GetAnalysis(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// 비동기 잡 폴링 (M6): queued/running + internal_request_id 있으면 job-runner 상태 조회
+		// 'submitting' 고착 복구: 프로세스가 제출 중 죽었으면 2분 뒤 queued로 되돌림
+	if rec.Status == "submitting" && time.Since(rec.UpdatedAt) > 2*time.Minute {
+		_, _ = db.Exec("UPDATE analysis_requests SET status = 'queued', updated_at = NOW() WHERE id = $1", rec.ID)
+		rec.Status = "queued"
+	}
+
+	// 지연 제출 복구 (2026-08-13): 생성 시 게이트웨이가 다운이었다면(queued + 내부 id 없음)
+	// 폴링 시점에 자동 재제출 — cmall 웹은 분석 서비스 장애와 무관하게 동작.
+	if rec.Status == "queued" && rec.InternalRequestID == "" && analyistURL() != "" {
+		res, claimErr := db.Exec(
+			"UPDATE analysis_requests SET status = 'submitting', updated_at = NOW() WHERE id = $1 AND status = 'queued' AND internal_request_id = ''",
+			rec.ID,
+		)
+		claimed := claimErr == nil
+		if n, _ := res.RowsAffected(); n == 1 {
+			claimed = true
+		}
+		if claimed {
+			internalResult, callErr := callAnalyistInternal(http.MethodPost, "/internal/analysis/"+rec.RequestType, map[string]string{
+				"symbol": rec.Symbol,
+			})
+			if callErr != nil {
+				if errors.Is(callErr, errAnalyistUnreachable) {
+					// 여전히 다운 — queued 유지, 다음 폴링에서 재시도
+					_, _ = db.Exec("UPDATE analysis_requests SET status = 'queued', updated_at = NOW() WHERE id = $1", rec.ID)
+				} else {
+					_, _ = db.Exec(
+						"UPDATE analysis_requests SET status = 'failed', error = $1, updated_at = NOW() WHERE id = $2",
+						callErr.Error(), rec.ID,
+					)
+				}
+			} else {
+				internalID, _ := internalResult["request_id"].(string)
+				status, _ := internalResult["status"].(string)
+				if status == "" {
+					status = "queued"
+				}
+				if status == "done" {
+					if raw, ok := internalResult["result"]; ok {
+						if b, err := json.Marshal(raw); err == nil {
+							_, _ = db.Exec(
+								"UPDATE analysis_requests SET status = 'done', result_json = $1, internal_request_id = $2, error = '', updated_at = NOW() WHERE id = $3",
+								string(b), internalID, rec.ID,
+							)
+						}
+					} else {
+						_, _ = db.Exec(
+							"UPDATE analysis_requests SET status = 'done', internal_request_id = $1, error = '', updated_at = NOW() WHERE id = $2",
+							internalID, rec.ID,
+						)
+					}
+				} else {
+					_, _ = db.Exec(
+						"UPDATE analysis_requests SET status = $1, internal_request_id = $2, error = '', updated_at = NOW() WHERE id = $3",
+						status, internalID, rec.ID,
+					)
+				}
+			}
+			// 갱신된 레코드 재조회
+			_ = db.QueryRow(`
+				SELECT id, user_id, request_type, symbol, status, COALESCE(result_json, '') AS result_json, COALESCE(internal_request_id, '') AS internal_request_id, COALESCE(error, '') AS error, created_at, updated_at
+				FROM analysis_requests WHERE id = $1
+			`, rec.ID).Scan(
+				&rec.ID, &rec.UserID, &rec.RequestType, &rec.Symbol, &rec.Status,
+				&rec.ResultJSON, &rec.InternalRequestID, &rec.Error,
+				&rec.CreatedAt, &rec.UpdatedAt,
+			)
+		}
+	}
+
+	// 비동기 잡 폴링 (M6): queued/running + internal_request_id 있으면 job-runner 상태 조회
 		if (rec.Status == "queued" || rec.Status == "running") && rec.InternalRequestID != "" && analyistURL() != "" {
 			jobResult, pollErr := callAnalyistInternal(http.MethodGet, "/internal/analysis/"+rec.InternalRequestID, nil)
 			if pollErr == nil {
