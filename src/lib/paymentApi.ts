@@ -1,4 +1,10 @@
 // ── 결제 플랫폼 API (M3 — ZK 지갑/USDC 결제) ─────────────────────────────
+// ⚠️ 이 파일은 api.ts의 함수/상수를 그대로 사용한다 — import 누락 시
+// 프로덕션 번들에서 ReferenceError로 모든 결제/분석 API가 실패한다 (실측 2026-08-13).
+import { API_BASE_URL, getToken, setToken, setCurrentUser, type User } from './api';
+
+// World ID/인간증명 등 일부 호출에서 사용하는 별칭 (api.ts의 API_BASE_URL과 동일)
+const API_BASE = API_BASE_URL;
 
 // Types
 export interface NonceResponse {

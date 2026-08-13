@@ -13,6 +13,11 @@ RUN npm ci
 COPY . .
 
 # Build the application
+# VITE_API_BASE_URL를 명시적으로 고정 — 미설정 시 import.meta.env 치환이
+# 번들에서 API_BASE_URL 선언 유실로 이어져 모든 API 호출이 ReferenceError로 실패함 (실측).
+# same-origin(/api/v1, nginx 프록시)이 기본 — 외부 고객 접속 필수값.
+ARG VITE_API_BASE_URL=/api/v1
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 RUN npm run build
 
 # Production image
