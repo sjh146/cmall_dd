@@ -18,7 +18,7 @@ import {
   type Payment,
   type AnalysisRequest,
 } from '../lib/paymentApi';
-import { getWalletProviderKind, getActiveProvider } from '../lib/walletProviders';
+import { getWalletProviderKind, getActiveProvider, setWalletProviderKind, WALLETCONNECT_CONFIGURED, connectWithAppKit } from '../lib/walletProviders';
 
 const fmtUsdc = (micro: number) => `${(micro / 1_000_000).toFixed(2)} USDC`;
 
@@ -107,11 +107,37 @@ export default function AnalysisPurchase({ agent }: { agent: Agent }) {
       setError('결제 주문이 없습니다. 먼저 결제 주문을 생성하세요.');
       return;
     }
-    // 활성 프로바이저: MetaMask → AppKit(이메일/소셜/모바일 지갑) 순서
-    const active = await getActiveProvider();
+    // 활성 프로바이저: MetaMask → AppKit(이메일/소셜/모바일 지갑) 순서.
+    // 없으면 자동 재연결 시도 (잠긴 MetaMask 해제, AppKit 세션 복원)
+    let active = await getActiveProvider();
     if (!active) {
-      setError('지갑이 연결되어 있지 않습니다. 로그인 후 지갑을 연결하세요.');
-      return;
+      const ethereum = (window as any).ethereum;
+      if (ethereum) {
+        try {
+          setMessage('지갑 연결을 승인해주세요 (MetaMask 잠금 해제/연결 확인)...');
+          const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+          if (accounts?.[0]) {
+            setWalletProviderKind('injected');
+            active = { provider: ethereum, address: accounts[0] };
+          }
+        } catch {
+          /* 사용자가 연결 거부 */
+        }
+      }
+      if (!active && WALLETCONNECT_CONFIGURED) {
+        try {
+          setMessage('지갑 연결 창을 열고 있습니다 — 이메일/QR로 연결해주세요...');
+          const conn = await connectWithAppKit();
+          setWalletProviderKind('appkit');
+          active = conn;
+        } catch {
+          /* 모달 취소 */
+        }
+      }
+      if (!active) {
+        setError('지갑이 연결되어 있지 않습니다. 로그인 후 지갑을 연결하세요.');
+        return;
+      }
     }
     setPaying(true);
     setError(null);

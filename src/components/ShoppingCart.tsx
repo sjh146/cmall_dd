@@ -1,4 +1,5 @@
 import { X, Minus, Plus, ShoppingBag } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
 import { SimpleModal } from './ui/SimpleModal';
@@ -24,7 +25,15 @@ export function ShoppingCart({
   onUpdateQuantity, 
   onRemoveItem 
 }: ShoppingCartProps) {
+  const navigate = useNavigate();
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  /** 체크아웃: 첫 번째 상품의 상세 페이지로 이동 (AI 분석 상품은 거기서 USDC 결제) */
+  const handleCheckout = () => {
+    if (!cartItems.length) return;
+    navigate(`/product/${cartItems[0].id}`);
+    onClose();
+  };
 
   const formatPrice = (price: number) => {
     return `$${(price / 100).toFixed(2)}`;
@@ -128,9 +137,12 @@ export function ShoppingCart({
                     <span>{formatPrice(subtotal)}</span>
                   </div>
                 </div>
-                <Button className="w-full" size="lg">
+                <Button className="w-full" size="lg" onClick={handleCheckout}>
                   Checkout
                 </Button>
+                <p className="text-xs text-muted-foreground text-center">
+                  AI 분석 상품은 상품 페이지에서 USDC(스마트컨트랙트)로 결제됩니다
+                </p>
               </div>
             </>
           )}
