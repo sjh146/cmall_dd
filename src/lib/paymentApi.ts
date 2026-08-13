@@ -269,14 +269,14 @@ export async function getAgents(): Promise<Agent[]> {
  * - nonce 발급 → 지갑 서명 → verify → JWT 저장
  * - DEV_SKIP_SIGNATURE 모드: 시그니처 "0xdev" 사용 (백엔드 dev 설정 시)
  */
-export async function loginWithWallet(ethereum: any, devMode = false): Promise<WalletAuthResponse> {
+export async function loginWithWallet(ethereum: any, devMode = false, explicitAddress?: string): Promise<WalletAuthResponse> {
   let walletAddress: string;
   if (devMode) {
-    // 개발 모드: 백엔드가 DEV_SKIP_SIGNATURE를 명시적으로 활성화한 경우에만 유효.
-    // 하드코딩된 기본 주소는 제거 — 개발자가 로컬 저장소에 devWalletAddress를 명시해야만 동작.
-    walletAddress = localStorage.getItem('devWalletAddress') || '';
+    // 개발 모드/주소 직접 입력: 백엔드가 DEV_SKIP_SIGNATURE를 명시적으로 활성화한 경우에만 유효.
+    // explicitAddress(지갑 주소 직접 입력) 우선, 없으면 localStorage devWalletAddress 사용.
+    walletAddress = explicitAddress || localStorage.getItem('devWalletAddress') || '';
     if (!walletAddress) {
-      throw new Error('devMode requires an explicit devWalletAddress in localStorage');
+      throw new Error('지갑 주소를 입력하세요');
     }
   } else {
     const accounts = await ethereum.request({ method: 'eth_requestAccounts' });

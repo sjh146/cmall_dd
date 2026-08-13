@@ -248,12 +248,11 @@ func devSignatureOK(wallet, signature string) bool {
 	if expected == "" || !strings.EqualFold(signature, expected) {
 		return false
 	}
-	for _, w := range strings.Split(os.Getenv("DEV_WALLETS"), ",") {
-		if strings.EqualFold(strings.TrimSpace(w), wallet) {
-			return true
-		}
-	}
-	return false
+	// ⚠️ 2026-08-13 사용자 요청: MetaMask 없는 고객도 지갑 주소만으로 연결 가능해야 함
+	// → DEV_WALLETS allowlist 검사를 제거 (APP_ENV=dev + DEV_FAKE_SIGNATURE 일치가 유일한 게이트).
+	//   테스트넷(dev) 한정 완화 — 운영(APP_ENV!=dev)은 이 함수가 아예 false라 영향 없음.
+	//   실결제는 pay()가 payer 개인키 서명을 요구하므로 자금 탈취 경로는 아님.
+	return true
 }
 
 // getOrCreateWalletUser — 지갑 전용 사용자 자동 프로비저닝

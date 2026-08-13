@@ -18,6 +18,7 @@ export default function WalletModal({ devMode = false }: { devMode?: boolean }) 
   const [address, setAddress] = useState<string | null>(getWalletAddress());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [manualAddress, setManualAddress] = useState('');
   const [humanity, setHumanity] = useState<string | null>(localStorage.getItem('humanityCredential'));
   const [passport, setPassport] = useState<string | null>(localStorage.getItem('passportCredential'));
   const [widEnabled, setWidEnabled] = useState(false);
@@ -40,9 +41,28 @@ export default function WalletModal({ devMode = false }: { devMode?: boolean }) 
     setError(null);
     try {
       if (!devMode && !ethereum) {
-        throw new Error('MetaMask가 설치되어 있지 않습니다. (개발 모드는 devMode)');
+        throw new Error('MetaMask가 설치되어 있지 않습니다. 아래에서 지갑 주소를 직접 입력하세요.');
       }
       const auth = await loginWithWallet(ethereum, devMode);
+      setAddress(auth.walletAddress);
+    } catch (e: any) {
+      setError(e.message || '지갑 연결 실패');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /** MetaMask 없이 지갑 주소만 입력해 연결 (dev 서버: DEV_SKIP_SIGNATURE 모드) */
+  async function handleConnectByAddress() {
+    const addr = manualAddress.trim().toLowerCase();
+    if (!/^0x[0-9a-f]{40}$/i.test(addr)) {
+      setError('올바른 지갑 주소(0x + 40자리 16진수)를 입력하세요');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const auth = await loginWithWallet(null, true, addr);
       setAddress(auth.walletAddress);
     } catch (e: any) {
       setError(e.message || '지갑 연결 실패');
@@ -134,7 +154,7 @@ export default function WalletModal({ devMode = false }: { devMode?: boolean }) 
             <button
               onClick={mockHumanity}
               disabled={humanityLoading}
-              className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs disabled:opacity-50"
+              className="px-3 py-1.5 bg-gray-600 text-white rounded-lg text-xs disabled:opacity-50"
             >
               {humanityLoading ? '처리 중...' : '개발모드 인간 증명 완료'}
             </button>
@@ -150,7 +170,7 @@ export default function WalletModal({ devMode = false }: { devMode?: boolean }) 
                 <button
                   onClick={open}
                   disabled={humanityLoading}
-                  className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs disabled:opacity-50"
+                  className="px-3 py-1.5 bg-gray-600 text-white rounded-lg text-xs disabled:opacity-50"
                 >
                   {humanityLoading ? '검증 중...' : 'World ID로 인간 증명'}
                 </button>
@@ -170,7 +190,7 @@ export default function WalletModal({ devMode = false }: { devMode?: boolean }) 
             <button
               onClick={mockPassport}
               disabled={humanityLoading}
-              className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs disabled:opacity-50"
+              className="px-3 py-1.5 bg-gray-600 text-white rounded-lg text-xs disabled:opacity-50"
             >
               {humanityLoading ? '처리 중...' : '개발모드 속성 증명 완료'}
             </button>
@@ -196,10 +216,34 @@ export default function WalletModal({ devMode = false }: { devMode?: boolean }) 
       <p className="text-sm text-gray-600 mb-2">
         지갑을 연결하고 USDC로 결제하세요. 시크릿은 서버에 저장되지 않습니다.
       </p>
+
+      {/* 주소 직접 입력 — MetaMask 없이 연결 (회색 버튼) */}
+      <div className="space-y-2 mb-3">
+        <input
+          value={manualAddress}
+          onChange={(e) => setManualAddress(e.target.value)}
+          placeholder="지갑 주소 입력 (0x...) — MetaMask 없이 연결"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-gray-500"
+        />
+        <button
+          onClick={handleConnectByAddress}
+          disabled={loading || !manualAddress.trim()}
+          className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg text-sm disabled:opacity-50"
+        >
+          {loading ? '연결 중...' : '주소로 연결'}
+        </button>
+      </div>
+
+      <div className="flex items-center gap-2 mb-3">
+        <div className="flex-1 border-t border-gray-200" />
+        <span className="text-xs text-gray-400">또는 MetaMask</span>
+        <div className="flex-1 border-t border-gray-200" />
+      </div>
+
       <button
         onClick={handleConnect}
         disabled={loading}
-        className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm disabled:opacity-50"
+        className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg text-sm disabled:opacity-50"
       >
         {loading ? '연결 중...' : devMode ? '개발모드 지갑 연결' : 'MetaMask 지갑 연결'}
       </button>
