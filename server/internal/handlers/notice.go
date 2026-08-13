@@ -28,7 +28,7 @@ func GetNotices(db *sql.DB) gin.HandlerFunc {
 		}
 		defer rows.Close()
 
-		var notices []models.Notice
+		notices := []models.Notice{}
 		for rows.Next() {
 			var n models.Notice
 			if err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.IsPublished, &n.CreatedAt, &n.UpdatedAt); err != nil {
@@ -70,7 +70,7 @@ func GetAllNotices(db *sql.DB) gin.HandlerFunc {
 		}
 		defer rows.Close()
 
-		var notices []models.Notice
+		notices := []models.Notice{}
 		for rows.Next() {
 			var n models.Notice
 			if err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.IsPublished, &n.CreatedAt, &n.UpdatedAt); err != nil {

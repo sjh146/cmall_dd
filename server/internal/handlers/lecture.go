@@ -28,7 +28,7 @@ func GetLectures(db *sql.DB) gin.HandlerFunc {
 		}
 		defer rows.Close()
 
-		var lectures []models.Lecture
+		lectures := []models.Lecture{}
 		for rows.Next() {
 			var l models.Lecture
 			if err := rows.Scan(&l.ID, &l.Title, &l.Description, &l.Content, &l.Thumbnail, &l.VideoURL, &l.Duration, &l.Instructor, &l.IsPublished, &l.CreatedAt, &l.UpdatedAt); err != nil {
@@ -70,7 +70,7 @@ func GetAllLectures(db *sql.DB) gin.HandlerFunc {
 		}
 		defer rows.Close()
 
-		var lectures []models.Lecture
+		lectures := []models.Lecture{}
 		for rows.Next() {
 			var l models.Lecture
 			if err := rows.Scan(&l.ID, &l.Title, &l.Description, &l.Content, &l.Thumbnail, &l.VideoURL, &l.Duration, &l.Instructor, &l.IsPublished, &l.CreatedAt, &l.UpdatedAt); err != nil {

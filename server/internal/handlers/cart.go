@@ -79,7 +79,7 @@ func GetCart(db *sql.DB) gin.HandlerFunc {
 		}
 		defer rows.Close()
 
-		var cartItems []models.CartItem
+		cartItems := []models.CartItem{}
 		for rows.Next() {
 			var item models.CartItem
 			var product models.Product

@@ -40,9 +40,9 @@ export function SimpleModal({ open, onClose, title, children, className = '' }: 
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      {/* Overlay */}
+      {/* Overlay — 뒤의 글자가 비쳐 겹쳐 보이지 않도록 90% 불투명 (수정: 70%→90%) */}
       <div
-        className="absolute inset-0 bg-black/70"
+        className="absolute inset-0 bg-black/90"
         onClick={onClose}
       />
 

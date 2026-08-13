@@ -57,7 +57,7 @@ func GetProducts(db *sql.DB) gin.HandlerFunc {
 		}
 		defer rows.Close()
 
-		var products []models.Product
+		products := []models.Product{}
 		for rows.Next() {
 			var p models.Product
 			err := rows.Scan(
@@ -391,7 +391,7 @@ func GetMyProducts(db *sql.DB) gin.HandlerFunc {
 		}
 		defer rows.Close()
 
-		var products []models.Product
+		products := []models.Product{}
 		for rows.Next() {
 			var p models.Product
 			err := rows.Scan(
@@ -453,7 +453,7 @@ func SearchProducts(db *sql.DB) gin.HandlerFunc {
 		}
 		defer rows.Close()
 
-		var products []models.Product
+		products := []models.Product{}
 		for rows.Next() {
 			var p models.Product
 			err := rows.Scan(

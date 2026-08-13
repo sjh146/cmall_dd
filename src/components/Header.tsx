@@ -1,4 +1,4 @@
-import { Search, ShoppingCart, Menu, User, LogOut, Package, Plus, GraduationCap, Bell, BookOpen, Settings, X } from 'lucide-react';
+import { Search, ShoppingCart, Menu, User, LogOut, Package, Plus, GraduationCap, Bell, BookOpen, Settings, X, Wallet } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useState, useEffect } from 'react';
@@ -169,6 +169,14 @@ export function Header({ onCartClick, searchQuery, onSearchChange, selectedCateg
                         >
                           <Package className="h-4 w-4 inline mr-2" />
                           My Products
+                        </Link>
+                        <Link
+                          to="/auth"
+                          className="block px-4 py-2 text-sm text-[#fafafa] hover:bg-[#1f1f1f] hover:text-[#d4af37] border-t border-[#262626]"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          <Wallet className="h-4 w-4 inline mr-2" />
+                          지갑 연결 / 결제
                         </Link>
                         <button
                           onClick={handleLogout}

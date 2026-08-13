@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { fetchNotices, type Notice } from '../lib/api';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { SimpleModal } from '../components/ui/SimpleModal';
 import { 
-  Bell, Calendar, ChevronRight, Pin 
+  Bell, Calendar, ChevronRight, Pin, Home
 } from 'lucide-react';
 
 // Financial dark theme colors
@@ -68,6 +69,14 @@ export default function NoticePage() {
         </div>
         
         <div className="relative max-w-7xl mx-auto px-4 py-16 sm:py-24">
+          {/* 홈으로 버튼 — notice 페이지에서 메인 쇼핑몰 복귀 */}
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-[#141414] border border-[#262626] rounded-lg text-sm text-[#a3a3a3] hover:text-[#d4af37] hover:border-[#d4af37]/50 transition-colors"
+          >
+            <Home className="w-4 h-4" />
+            홈으로
+          </Link>
           <div className="flex items-center gap-3 mb-4">
             <div className={`p-3 rounded-xl ${theme.gradient}`}>
               <Bell className="w-8 h-8 text-black" />

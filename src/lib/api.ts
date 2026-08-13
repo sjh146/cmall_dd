@@ -159,7 +159,7 @@ export async function fetchProducts(): Promise<Product[]> {
   if (!response.ok) {
     throw new Error('Failed to fetch products');
   }
-  return response.json();
+  return (await response.json()) || []; // 백엔드 nil 슬라이스 null 대비
 }
 
 export async function searchProducts(params: { q?: string; type?: string; category?: string }): Promise<Product[]> {
@@ -172,7 +172,7 @@ export async function searchProducts(params: { q?: string; type?: string; catego
   if (!response.ok) {
     throw new Error('Failed to search products');
   }
-  return response.json();
+  return (await response.json()) || [];
 }
 
 export async function fetchProduct(id: number): Promise<Product> {
@@ -192,7 +192,7 @@ export async function fetchMyProducts(): Promise<Product[]> {
   if (!response.ok) {
     throw new Error('Failed to fetch my products');
   }
-  return response.json();
+  return (await response.json()) || []; // 백엔드 nil 슬라이스 null 대비
 }
 
 export async function createProduct(data: {
@@ -559,7 +559,7 @@ export async function fetchNotices(): Promise<Notice[]> {
   if (!response.ok) {
     throw new Error('Failed to fetch notices');
   }
-  return response.json();
+  return (await response.json()) || []; // 백엔드 nil 슬라이스 null 대비
 }
 
 export async function fetchNotice(id: number): Promise<Notice> {
