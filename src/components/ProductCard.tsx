@@ -45,16 +45,16 @@ export function ProductCard({ product, onAddToCart, onToggleFavorite, isFavorite
       'course': { bg: 'bg-[#1e3d5f]', text: 'text-[#3b82f6]' },
       'ebook': { bg: 'bg-[#5f3d1e]', text: 'text-[#f59e0b]' },
       'template': { bg: 'bg-[#2d2d2d]', text: 'text-[#a3a3a3]' },
-      'other': { bg: 'bg-[#262626]', text: 'text-[#737373]' },
+      'other': { bg: 'bg-[#f3f4f6]', text: 'text-[#374151]' },
     };
     return styles[category] || styles['other'];
   };
 
   if (isMobile) {
     return (
-      <div className="bg-[#141414] border border-[#262626] rounded-lg overflow-hidden">
+      <div className="bg-white border border-[#e5e5e5] rounded-lg overflow-hidden">
         <div className="flex gap-3 p-3">
-          <div className="relative flex-shrink-0 w-20 h-20 bg-[#0a0a0a] flex items-center justify-center overflow-hidden rounded">
+          <div className="relative flex-shrink-0 w-20 h-20 bg-[#f5f5f5] flex items-center justify-center overflow-hidden rounded">
             {product.image ? (
               <ImageWithFallback
                 src={product.image}
@@ -78,12 +78,12 @@ export function ProductCard({ product, onAddToCart, onToggleFavorite, isFavorite
               </span>
             </div>
             
-            <h3 className="text-sm text-[#fafafa] mb-1.5 line-clamp-2 leading-snug font-medium">{product.name}</h3>
+            <h3 className="text-sm text-[#111111] mb-1.5 line-clamp-2 leading-snug font-medium">{product.name}</h3>
             
             <div className="flex items-baseline gap-2">
-              <span className="text-base font-bold text-[#d4af37]">{formatPrice(product.price)}</span>
+              <span className="text-base font-bold text-[#b8860b]">{formatPrice(product.price)}</span>
               {product.originalPrice && (
-                <span className="text-xs text-[#737373] line-through">{formatPrice(product.originalPrice)}</span>
+                <span className="text-xs text-[#6b7280] line-through">{formatPrice(product.originalPrice)}</span>
               )}
             </div>
           </div>
@@ -93,8 +93,8 @@ export function ProductCard({ product, onAddToCart, onToggleFavorite, isFavorite
   }
 
   return (
-    <Link to={`/product/${product.id}`} className="block bg-[#141414] group cursor-pointer border border-[#262626] hover:border-[#d4af37] transition-all duration-300 rounded-lg overflow-hidden">
-      <div className="relative overflow-hidden aspect-square bg-[#0a0a0a]">
+    <Link to={`/product/${product.id}`} className="block bg-white group cursor-pointer border border-[#e5e5e5] hover:border-[#d4af37] transition-all duration-300 rounded-lg overflow-hidden">
+      <div className="relative overflow-hidden aspect-square bg-[#f5f5f5]">
         {product.image ? (
           <ImageWithFallback
             src={product.image}
@@ -109,7 +109,7 @@ export function ProductCard({ product, onAddToCart, onToggleFavorite, isFavorite
         <Button
           variant="ghost"
           size="sm"
-          className={`absolute top-3 right-3 p-2 rounded-full bg-black/50 hover:bg-[#d4af37] ${isFavorite ? 'text-red-500' : 'text-[#fafafa]'}`}
+          className={`absolute top-3 right-3 p-2 rounded-full bg-black/50 hover:bg-[#d4af37] ${isFavorite ? 'text-red-500' : 'text-[#111111]'}`}
           onClick={(e) => {
             e.stopPropagation();
             onToggleFavorite(product.id);
@@ -150,17 +150,17 @@ export function ProductCard({ product, onAddToCart, onToggleFavorite, isFavorite
           </span>
         </div>
         
-        <h3 className="text-sm text-[#fafafa] line-clamp-2 leading-snug font-medium mb-2">{product.name}</h3>
+        <h3 className="text-sm text-[#111111] line-clamp-2 leading-snug font-medium mb-2">{product.name}</h3>
         
         <div className="flex items-baseline gap-2">
-          <span className="text-lg font-bold text-[#d4af37]">{formatPrice(product.price)}</span>
+          <span className="text-lg font-bold text-[#b8860b]">{formatPrice(product.price)}</span>
           {product.originalPrice && (
-            <span className="text-xs text-[#737373] line-through">{formatPrice(product.originalPrice)}</span>
+            <span className="text-xs text-[#6b7280] line-through">{formatPrice(product.originalPrice)}</span>
           )}
         </div>
         
         {product.size && (
-          <p className="text-xs text-[#737373] pt-2 uppercase">v{product.size}</p>
+          <p className="text-xs text-[#6b7280] pt-2 uppercase">v{product.size}</p>
         )}
       </div>
     </Link>

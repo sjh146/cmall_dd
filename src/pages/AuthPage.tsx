@@ -21,7 +21,7 @@ export default function AuthPage() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState('');
 
-  const { login, register } = useAuth();
+  const { user, login, register } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -66,8 +66,8 @@ export default function AuthPage() {
     setConfirmPassword('');
   };
 
-  // 로그인 완료 → 지갑 연결 안내 (USDC 결제용)
-  if (loggedIn) {
+  // 로그인 완료 또는 이미 로그인 상태 → 지갑 연결 안내 (USDC 결제용)
+  if (user || loggedIn) {
     const isDevMode = typeof window !== 'undefined' && !(window as any).ethereum;
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-8">

@@ -20,12 +20,12 @@ import {
 const fmtUsdc = (micro: number) => `${(micro / 1_000_000).toFixed(2)} USDC`;
 
 const c = {
-  card: 'bg-[#141414] border border-[#262626] rounded-lg',
-  text: 'text-[#fafafa]',
-  muted: 'text-[#737373]',
+  card: 'bg-white border border-[#e5e5e5] rounded-lg',
+  text: 'text-[#111111]',
+  muted: 'text-[#6b7280]',
   accent: 'text-[#d4af37]',
   accentBg: 'bg-[#d4af37]',
-  input: 'bg-[#0a0a0a] border border-[#262626] rounded-lg px-3 py-2 text-sm text-[#fafafa] focus:outline-none focus:border-[#d4af37]',
+  input: 'bg-[#f5f5f5] border border-[#e5e5e5] rounded-lg px-3 py-2 text-sm text-[#111111] focus:outline-none focus:border-[#d4af37]',
 };
 
 export default function AnalysisPurchase({ agent }: { agent: Agent }) {
@@ -160,19 +160,29 @@ export default function AnalysisPurchase({ agent }: { agent: Agent }) {
       </div>
 
       {!payment && (
-        <button
-          onClick={handleBuy}
-          disabled={loading}
-          className={`w-full px-4 py-3 ${c.accentBg} text-black rounded-lg text-sm font-semibold disabled:opacity-50`}
-        >
-          {loading ? '주문 생성 중...' : `결제하고 구매 — ${fmtUsdc(agent.cryptoPriceUsdc)}`}
-        </button>
+        <div className="space-y-2">
+          {!getWalletAddress() && (
+            <p className={`text-xs ${c.muted}`}>
+              💡 결제 전 지갑 연결이 필요합니다.{' '}
+              <a href="/auth" className="text-blue-600 underline">
+                지갑 연결하러 가기 →
+              </a>
+            </p>
+          )}
+          <button
+            onClick={handleBuy}
+            disabled={loading}
+            className={`w-full px-4 py-3 ${c.accentBg} text-black rounded-lg text-sm font-semibold disabled:opacity-50`}
+          >
+            {loading ? '주문 생성 중...' : `결제하고 구매 — ${fmtUsdc(agent.cryptoPriceUsdc)}`}
+          </button>
+        </div>
       )}
 
       {payment && (
         <div className="space-y-3 text-sm">
           <p className={`${c.muted} text-xs`}>
-            reference: <code className="bg-[#0a0a0a] px-1 rounded">{payment.referenceId}</code>
+            reference: <code className="bg-[#f5f5f5] px-1 rounded">{payment.referenceId}</code>
           </p>
           <p className={c.text}>
             금액: <b className={c.accent}>{fmtUsdc(payment.amountUsdc)}</b> · 상태: <b>{payment.status}</b>
@@ -184,7 +194,7 @@ export default function AnalysisPurchase({ agent }: { agent: Agent }) {
                 href={`https://sepolia.basescan.org/tx/${payment.txHash}`}
                 target="_blank"
                 rel="noreferrer"
-                className="text-blue-400 underline"
+                className="text-blue-600 underline"
               >
                 {payment.txHash}
               </a>
@@ -202,7 +212,7 @@ export default function AnalysisPurchase({ agent }: { agent: Agent }) {
               <button
                 onClick={handleRefreshPayment}
                 disabled={loading}
-                className="px-3 py-2 border border-[#262626] rounded-lg text-sm text-[#a3a3a3] disabled:opacity-50"
+                className="px-3 py-2 border border-[#e5e5e5] rounded-lg text-sm text-[#4b5563] disabled:opacity-50"
               >
                 상태 새로고침
               </button>
@@ -259,44 +269,44 @@ export function AnalysisResultView({ requestType, resultJson }: { requestType: s
     data = JSON.parse(resultJson);
   } catch {
     return (
-      <div className="bg-[#0a0a0a] border border-[#262626] rounded-lg p-3">
-        <h4 className="font-semibold mb-2 text-[#fafafa]">📊 분석 결과</h4>
-        <pre className="text-xs whitespace-pre-wrap text-[#a3a3a3]">{resultJson}</pre>
+      <div className="bg-[#f5f5f5] border border-[#e5e5e5] rounded-lg p-3">
+        <h4 className="font-semibold mb-2 text-[#111111]">📊 분석 결과</h4>
+        <pre className="text-xs whitespace-pre-wrap text-[#4b5563]">{resultJson}</pre>
       </div>
     );
   }
   return (
-    <div className="bg-[#0a0a0a] border border-[#262626] rounded-lg p-3 space-y-3">
-      <h4 className="font-semibold text-[#fafafa]">📊 분석 결과</h4>
+    <div className="bg-[#f5f5f5] border border-[#e5e5e5] rounded-lg p-3 space-y-3">
+      <h4 className="font-semibold text-[#111111]">📊 분석 결과</h4>
       {requestType === 'backtest' && <BacktestView data={data} />}
       {requestType === 'swing_screener' && <SwingView data={data} />}
       {requestType === 'factor_report' && <FactorView data={data} />}
       {requestType === 'stock_report' && <StockReportView data={data} />}
       {!['backtest', 'swing_screener', 'factor_report', 'stock_report'].includes(requestType) && (
-        <pre className="text-xs whitespace-pre-wrap text-[#a3a3a3]">{JSON.stringify(data, null, 2)}</pre>
+        <pre className="text-xs whitespace-pre-wrap text-[#4b5563]">{JSON.stringify(data, null, 2)}</pre>
       )}
     </div>
   );
 }
 
 const pct = (v: any, d = 2) => (typeof v === 'number' ? `${(v * 100).toFixed(d)}%` : '-');
-const th = 'border border-[#262626] p-1.5 text-left';
-const td = 'border border-[#262626] p-1.5';
-const headCls = `${th} bg-[#141414] text-[#d4af37]`;
+const th = 'border border-[#e5e5e5] p-1.5 text-left';
+const td = 'border border-[#e5e5e5] p-1.5';
+const headCls = `${th} bg-[#f5f5f5] text-[#b8860b] font-semibold`;
 
 function BacktestView({ data }: { data: any }) {
   const m = data.metrics || {};
   const model = data.model || {};
   const trades: any[] = data.top_trades || [];
   return (
-    <div className="space-y-3 text-sm text-[#a3a3a3]">
+    <div className="space-y-3 text-sm text-[#4b5563]">
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
         <span>기간: {data.window?.start} ~ {data.window?.end}</span>
         <span>유니버스: {data.universe_size}종목</span>
         <span>모델: {model.name} (AUC {model.auc})</span>
         <span>매수 임계값: {model.buy_threshold}</span>
       </div>
-      <table className="w-full text-xs border-collapse text-[#fafafa]">
+      <table className="w-full text-xs border-collapse text-[#111111]">
         <tbody>
           <tr><td className={td}>신호 수 (매수)</td><td className={td}>{m.num_trades ?? 0}건</td></tr>
           <tr><td className={td}>승률 (양수 수익 비율)</td><td className={td}>{pct(m.win_rate)}</td></tr>
@@ -330,7 +340,7 @@ function BacktestView({ data }: { data: any }) {
 function SwingView({ data }: { data: any }) {
   const cands: any[] = data.candidates || [...(data.top_up || []), ...(data.top_down || [])];
   return (
-    <div className="space-y-3 text-sm text-[#a3a3a3]">
+    <div className="space-y-3 text-sm text-[#4b5563]">
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
         <span>스크리닝일: {data.date || data.generated_at}</span>
         <span>후보: {data.total ?? cands.length}종목</span>
@@ -365,7 +375,7 @@ function FactorView({ data }: { data: any }) {
   const strategies = data.strategies || {};
   const rows = Object.entries(strategies).map(([name, s]: [string, any]) => ({ name, ...(s.metrics || {}) }));
   return (
-    <div className="space-y-3 text-sm text-[#a3a3a3]">
+    <div className="space-y-3 text-sm text-[#4b5563]">
       <p className="text-xs">강환국『하면 된다! 퀀트투자』5종 팩터 — 실 DB 기반 리밸런싱 백테스트 · {data.generated_at}</p>
       <table className="w-full text-xs border-collapse">
         <thead>
@@ -393,9 +403,9 @@ function StockReportView({ data }: { data: any }) {
   const preds: any[] = data.predictions || [];
   const mkt: any[] = data.market_data || [];
   return (
-    <div className="space-y-3 text-sm text-[#a3a3a3]">
-      <div className="text-xs bg-[#141414] rounded border border-[#262626] p-2">
-        <b className="text-[#fafafa]">{sum.symbol}</b> · 예측: <b>{sum.verdict}</b> (신뢰도 {sum.confidence ?? '-'}) · 감성: {sum.sentiment_label ?? '-'} · 종가: {sum.last_close ?? '-'}
+    <div className="space-y-3 text-sm text-[#4b5563]">
+      <div className="text-xs bg-white rounded border border-[#e5e5e5] p-2">
+        <b className="text-[#111111]">{sum.symbol}</b> · 예측: <b>{sum.verdict}</b> (신뢰도 {sum.confidence ?? '-'}) · 감성: {sum.sentiment_label ?? '-'} · 종가: {sum.last_close ?? '-'}
       </div>
       {preds.length > 0 && (
         <table className="w-full text-xs border-collapse">
