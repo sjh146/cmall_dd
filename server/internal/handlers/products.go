@@ -40,9 +40,11 @@ func sanitizePublicProduct(p *models.Product) {
 func GetProducts(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		query := `
-			SELECT id, seller_id, name, price, original_price, image, category, product_type,
-			       version, download_url, file_size, license_key, description, features,
-			       system_requirements, created_at, updated_at
+			SELECT id, seller_id, name, price, COALESCE(original_price, 0), COALESCE(image, ''),
+			       COALESCE(category, ''), product_type,
+			       COALESCE(version, ''), COALESCE(download_url, ''), COALESCE(file_size, ''),
+			       COALESCE(license_key, ''), COALESCE(description, ''), COALESCE(features, ''),
+			       COALESCE(system_requirements, ''), created_at, updated_at
 			FROM products
 			WHERE is_active = true
 			ORDER BY created_at DESC
@@ -88,9 +90,11 @@ func GetProduct(db *sql.DB) gin.HandlerFunc {
 		}
 
 		query := `
-			SELECT id, seller_id, name, price, original_price, image, category, product_type,
-			       version, download_url, file_size, license_key, description, features,
-			       system_requirements, created_at, updated_at
+			SELECT id, seller_id, name, price, COALESCE(original_price, 0), COALESCE(image, ''),
+			       COALESCE(category, ''), product_type,
+			       COALESCE(version, ''), COALESCE(download_url, ''), COALESCE(file_size, ''),
+			       COALESCE(license_key, ''), COALESCE(description, ''), COALESCE(features, ''),
+			       COALESCE(system_requirements, ''), created_at, updated_at
 			FROM products
 			WHERE id = $1 AND is_active = true
 		`
