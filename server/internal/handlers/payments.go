@@ -262,7 +262,7 @@ func GetAgents(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rows, err := db.Query(`
 			SELECT id, seller_id, name, price, original_price, image, category, product_type,
-			       version, download_url, file_size, license_key, description, features,
+			       request_type, version, download_url, file_size, license_key, description, features,
 			       system_requirements, crypto_price_usdc, created_at, updated_at
 			FROM products
 			WHERE crypto_price_usdc > 0
@@ -280,6 +280,7 @@ func GetAgents(db *sql.DB) gin.HandlerFunc {
 			Description     string `json:"description"`
 			Category        string `json:"category"`
 			ProductType     string `json:"productType"`
+			RequestType     string `json:"requestType"`
 			CryptoPriceUsdc int64  `json:"cryptoPriceUsdc"`
 		}
 		agents := []agentProduct{}
@@ -289,7 +290,7 @@ func GetAgents(db *sql.DB) gin.HandlerFunc {
 			var image, version, downloadURL, fileSize, licenseKey, features, systemReq string
 			var createdAt, updatedAt interface{}
 			if err := rows.Scan(&a.ID, &sellerID, &a.Name, &price, &originalPrice, &image, &a.Category,
-				&a.ProductType, &version, &downloadURL, &fileSize, &licenseKey, &a.Description,
+				&a.ProductType, &a.RequestType, &version, &downloadURL, &fileSize, &licenseKey, &a.Description,
 				&features, &systemReq, &a.CryptoPriceUsdc, &createdAt, &updatedAt); err != nil {
 				continue
 			}

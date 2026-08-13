@@ -34,6 +34,15 @@ export interface PaymentResponse {
   verifyError?: string;
 }
 
+/**
+ * payments/create 응답 — Go PaymentResponse가 Payment를 익명 임베딩해
+ * JSON이 flat으로 내려온다: 결제 필드 + contractAddress + tokenAddress(설정 시).
+ */
+export type CreatePaymentResult = Payment & {
+  contractAddress?: string;
+  tokenAddress?: string;
+};
+
 export interface AnalysisRequest {
   id: number;
   userId: number;
@@ -53,6 +62,7 @@ export interface Agent {
   description: string;
   category: string;
   productType: string;
+  requestType?: string;
   cryptoPriceUsdc: number;
 }
 
@@ -185,7 +195,7 @@ export async function connectWallet(): Promise<{ connected: boolean; walletAddre
 }
 
 // 결제
-export async function createPayment(productId: number): Promise<PaymentResponse> {
+export async function createPayment(productId: number): Promise<CreatePaymentResult> {
   const token = getToken();
   const response = await fetch(`${API_BASE_URL}/payments/create`, {
     method: 'POST',
@@ -284,4 +294,181 @@ export async function loginWithWallet(ethereum: any, devMode = false): Promise<W
   setCurrentUser(auth.user);
   setWalletAddress(auth.walletAddress);
   return auth;
+}
+
+// ── 온체인 스마트컨트랙트 결제 (M6) ───────────────────────────────────────
+// payments/create(registerOrder) → 네트워크 스위치(84532) → USDC approve → pay() → getPayment 폴링
+
+/** Base Sepolia 체인 ID (10진수/16진수) */
+export const BASE_SEPOLIA_CHAIN_ID = 84532;
+const BASE_SEPOLIA_CHAIN_ID_HEX = '0x14a34';
+
+/**
+ * 테스트넷 USDC 폴백 주소 (공개 주소 — 시크릿 아님).
+ * payments/create 응답의 tokenAddress 필드를 우선 사용하고, 백엔드가
+ * USDC_TOKEN_ADDRESS를 주입하지 않아 필드가 비어 있는 경우에만 사용한다.
+ */
+export const USDC_TOKEN_ADDRESS_FALLBACK = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
+
+const USDC_ABI = [
+  'function approve(address spender, uint256 amount) returns (bool)',
+  'function allowance(address owner, address spender) view returns (uint256)',
+] as const;
+
+const ANALYIST_PAYMENT_ABI = [
+  'function pay(uint256 orderId, uint256 amountUsdc)',
+  'function processedOrderIds(uint256 orderId) view returns (bool)',
+] as const;
+
+/**
+ * 사용자 지갑을 Base Sepolia(84532)로 전환 (미등록 체인이면 추가 후 전환).
+ */
+export async function ensureBaseSepolia(ethereum: any): Promise<void> {
+  const current = await ethereum.request({ method: 'eth_chainId' });
+  if (Number(current) === BASE_SEPOLIA_CHAIN_ID) return;
+  try {
+    await ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: BASE_SEPOLIA_CHAIN_ID_HEX }],
+    });
+  } catch (e: any) {
+    // 4902 = chain not added to wallet → 추가 후 재시도
+    if (e?.code === 4902) {
+      await ethereum.request({
+        method: 'wallet_addEthereumChain',
+        params: [
+          {
+            chainId: BASE_SEPOLIA_CHAIN_ID_HEX,
+            chainName: 'Base Sepolia',
+            nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+            rpcUrls: ['https://sepolia.base.org'],
+            blockExplorerUrls: ['https://sepolia.basescan.org'],
+          },
+        ],
+      });
+    } else {
+      throw e;
+    }
+  }
+}
+
+/**
+ * 스마트컨트랙트 직접 결제 (M6 — G1 해소)
+ * 1) 네트워크 스위치 (Base Sepolia 84532)
+ * 2) USDC approve(contractAddress, amountUsdc) — 잔여 allowance가 충분하면 생략
+ * 3) AnalyistPayment.pay(orderId, amountUsdc) — orderId = BigInt(keccak256(utf8(referenceId)))
+ * 4) 온체인 tx 확정 후 txHash 반환 (getPayment 폴링은 호출부에서 진행)
+ *
+ * @param payment payments/create 응답의 payment (referenceId/amountUsdc/walletAddress 사용)
+ * @param contractAddress payments/create 응답의 contractAddress (AnalyistPayment)
+ * @param tokenAddress payments/create 응답의 tokenAddress (USDC) — 비어 있으면 테스트넷 폴백
+ * @param ethereum EIP-1193 provider (window.ethereum)
+ * @returns {txHash, approveTxHash} pay() 트랜잭션 해시 + approve 트랜잭션 해시(생략 시 undefined)
+ */
+export async function payWithContract(
+  payment: Payment,
+  contractAddress: string,
+  tokenAddress: string | null | undefined,
+  ethereum: any
+): Promise<{ txHash: string; approveTxHash?: string }> {
+  if (!contractAddress) throw new Error('payments/create 응답에 contractAddress가 없습니다.');
+  const usdcAddress = tokenAddress || USDC_TOKEN_ADDRESS_FALLBACK;
+
+  await ensureBaseSepolia(ethereum);
+
+  const { BrowserProvider, Contract, keccak256, toUtf8Bytes } = await import('ethers');
+  const provider = new BrowserProvider(ethereum);
+  const signer = await provider.getSigner();
+  const address = (await signer.getAddress()).toLowerCase();
+
+  // 결제자 바인딩: pay()는 등록된 payer(msg.sender)만 호출 가능 — 지갑 불일치 사전 차단
+  if (address !== payment.walletAddress.toLowerCase()) {
+    throw new Error(
+      `지갑 불일치: 이 결제는 ${payment.walletAddress} 지갑으로 생성됐습니다. 현재 연결 지갑(${address})으로 결제할 수 없습니다.`
+    );
+  }
+
+  const amount = BigInt(payment.amountUsdc);
+  const orderId = BigInt(keccak256(toUtf8Bytes(payment.referenceId)));
+
+  const usdc = new Contract(usdcAddress, USDC_ABI, signer);
+  const paymentContract = new Contract(contractAddress, ANALYIST_PAYMENT_ABI, signer);
+
+  // ② USDC approve (잔여 allowance 부족 시에만) — pay() 선행 필수
+  const allowance = await usdc.allowance(address, contractAddress);
+  let approveTxHash: string | undefined;
+  if (allowance < amount) {
+    const approveTx = await usdc.approve(contractAddress, amount);
+    approveTxHash = approveTx.hash;
+    await approveTx.wait();
+  }
+
+  // ③ pay(orderId, amountUsdc)
+  // Base 공개 RPC는 approve 직후 estimateGas가 stale state를 볼 수 있어
+  // allowance 재확인 + 재-approve 후 재시도한다 (최대 3회).
+  let payTx: { hash: string; wait(): Promise<unknown> } | undefined;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      payTx = await paymentContract.pay(orderId, amount);
+      break;
+    } catch (e) {
+      if (attempt === 3) throw e;
+      const cur = await usdc.allowance(address, contractAddress);
+      if (cur < amount) {
+        const reApprove = await usdc.approve(contractAddress, amount);
+        await reApprove.wait();
+      }
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+  }
+  await payTx.wait();
+
+  return { txHash: payTx.hash, approveTxHash };
+}
+
+/**
+ * getPayment 폴링 — 결제가 paid(또는 failed)로 확정될 때까지 반복 조회.
+ * @returns 최종 paid Payment (onStatus 콜백으로 매 폴링 상태 전달)
+ */
+export async function pollPaymentUntilPaid(
+  referenceId: string,
+  opts?: { intervalMs?: number; timeoutMs?: number; onStatus?: (status: string) => void }
+): Promise<Payment> {
+  const intervalMs = opts?.intervalMs ?? 3000;
+  const timeoutMs = opts?.timeoutMs ?? 180_000;
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    const resp = await getPayment(referenceId);
+    const status = resp.payment.status;
+    opts?.onStatus?.(status);
+    if (status === 'paid') return resp.payment;
+    if (status === 'failed') throw new Error('결제가 실패 상태로 확정되었습니다.');
+    if (resp.verifyError) {
+      opts?.onStatus?.(`gateway: ${resp.verifyError}`);
+    }
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  throw new Error('결제 확인 시간 초과 — 결제 상태를 다시 확인해주세요.');
+}
+
+/**
+ * 분석 잡 폴링 — queued/running → done/failed 확정까지 반복 조회 (M6 비동기 잡).
+ * @returns 최종 AnalysisRequest (resultJson 포함, onStatus 콜백으로 진행 상태 전달)
+ */
+export async function pollAnalysisUntilDone(
+  requestId: number,
+  opts?: { intervalMs?: number; timeoutMs?: number; onStatus?: (status: string) => void }
+): Promise<AnalysisRequest> {
+  const intervalMs = opts?.intervalMs ?? 5000;
+  const timeoutMs = opts?.timeoutMs ?? 25 * 60_000; // 전략 실행 최대 25분 (스윙/팩터 잡)
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    const rec = await getAnalysis(requestId);
+    opts?.onStatus?.(rec.status);
+    if (rec.status === 'done' || rec.status === 'failed') return rec;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  throw new Error('분석 실행 시간 초과 — 잠시 후 결과를 다시 조회해주세요.');
 }

@@ -70,13 +70,15 @@ var allowedAnalysisRequestTypes = map[string]bool{
 
 // userHasAnalysisEntitlement — 결제한 분석 상품이 요청한 request_type과 일치해야 함 (CWE-862:
 // "아무 paid 결제"로 모든 분석 기능이 열리는 것 방지 — 백테스트 결제로 팩터 리포트 요청 불가).
+// 주의: 상품의 product_type은 'software' 등으로 다양하므로 request_type 바인딩만으로 판별한다
+// (products.request_type 기본값 'stock_report' — 유료 분석 상품은 crypto_price_usdc > 0).
 func userHasAnalysisEntitlement(db *sql.DB, userID interface{}, requestType string) bool {
 	var id int
 	err := db.QueryRow(`
 		SELECT p.id FROM payments p
 		JOIN products pr ON pr.id = p.order_id
 		WHERE p.user_id = $1 AND p.status = 'paid'
-		  AND pr.product_type = 'analysis' AND pr.request_type = $2
+		  AND pr.request_type = $2 AND pr.crypto_price_usdc > 0
 		LIMIT 1`, userID, requestType,
 	).Scan(&id)
 	return err == nil
@@ -125,43 +127,56 @@ func CreateAnalysis(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// analyist_dd 내부 API 호출 (M4 연동 시 활성화)
-		// request_type → 내부 엔드포인트 매핑 (M6 상품: 스윙/백테스트/팩터 리포트)
+		// analyist_dd 내부 API 호출 (M6 — 비동기 잡)
+		// stock_report는 즉시 done(result 포함), 나머지는 queued/running → GetAnalysis에서 폴링
 		if analyistURL() != "" {
-			var internalResult map[string]interface{}
-			var callErr error
+			internalResult, callErr := callAnalyistInternal(http.MethodPost, "/internal/analysis/"+req.RequestType, map[string]string{
+				"symbol": req.Symbol,
+			})
 
-			switch req.RequestType {
-			case "swing_screener":
-				internalResult, callErr = callAnalyistInternal(http.MethodGet, "/internal/swing-screener", nil)
-			case "backtest":
-				internalResult, callErr = callAnalyistInternal(http.MethodGet, "/internal/backtest", nil)
-			case "factor_report":
-				internalResult, callErr = callAnalyistInternal(http.MethodGet, "/internal/factor-report", nil)
-			default: // stock_report 등 — 온디맨드 분석 합성
-				internalResult, callErr = callAnalyistInternal(http.MethodPost, "/internal/analysis", map[string]string{
-					"symbol":       req.Symbol,
-					"request_type": req.RequestType,
-				})
-			}
-
-			if callErr == nil {
-				internalID, _ := internalResult["request_id"].(string)
-				resultJSON, _ := json.Marshal(internalResult)
-				_, _ = db.Exec(`
-					UPDATE analysis_requests SET status = 'done', result_json = $1, internal_request_id = $2, updated_at = NOW()
-					WHERE id = $3
-				`, string(resultJSON), internalID, reqRec.ID)
-				reqRec.Status = "done"
-				reqRec.ResultJSON = string(resultJSON)
-				reqRec.InternalRequestID = internalID
-			} else {
+			if callErr != nil {
 				_, _ = db.Exec(
 					"UPDATE analysis_requests SET status = 'failed', error = $1, updated_at = NOW() WHERE id = $2",
 					callErr.Error(), reqRec.ID,
 				)
 				reqRec.Status = "failed"
 				reqRec.Error = callErr.Error()
+			} else {
+				internalID, _ := internalResult["request_id"].(string)
+				status, _ := internalResult["status"].(string)
+				if status == "" {
+					status = "queued"
+				}
+
+				if status == "done" {
+					// 즉시 완료 (stock_report 등) — result를 result_json으로 저장
+					if raw, ok := internalResult["result"]; ok {
+						if b, err := json.Marshal(raw); err == nil {
+							_, _ = db.Exec(
+								"UPDATE analysis_requests SET status = 'done', result_json = $1, internal_request_id = $2, updated_at = NOW() WHERE id = $3",
+								string(b), internalID, reqRec.ID,
+							)
+							reqRec.Status = "done"
+							reqRec.ResultJSON = string(b)
+							reqRec.InternalRequestID = internalID
+						}
+					} else {
+						_, _ = db.Exec(
+							"UPDATE analysis_requests SET status = 'done', internal_request_id = $1, updated_at = NOW() WHERE id = $2",
+							internalID, reqRec.ID,
+						)
+						reqRec.Status = "done"
+						reqRec.InternalRequestID = internalID
+					}
+				} else {
+					// queued/running — 내부 잡 ID 저장, GetAnalysis에서 상태 폴링
+					_, _ = db.Exec(
+						"UPDATE analysis_requests SET status = $1, internal_request_id = $2, updated_at = NOW() WHERE id = $3",
+						status, internalID, reqRec.ID,
+					)
+					reqRec.Status = status
+					reqRec.InternalRequestID = internalID
+				}
 			}
 		}
 
@@ -195,6 +210,41 @@ func GetAnalysis(db *sql.DB) gin.HandlerFunc {
 		if rec.UserID != userID {
 			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
 			return
+		}
+
+		// 비동기 잡 폴링 (M6): queued/running + internal_request_id 있으면 job-runner 상태 조회
+		if (rec.Status == "queued" || rec.Status == "running") && rec.InternalRequestID != "" && analyistURL() != "" {
+			jobResult, pollErr := callAnalyistInternal(http.MethodGet, "/internal/analysis/"+rec.InternalRequestID, nil)
+			if pollErr == nil {
+				status, _ := jobResult["status"].(string)
+				switch status {
+				case "done":
+					if raw, ok := jobResult["result"]; ok {
+						if b, err := json.Marshal(raw); err == nil {
+							_, _ = db.Exec(
+								"UPDATE analysis_requests SET status = 'done', result_json = $1, updated_at = NOW() WHERE id = $2",
+								string(b), rec.ID,
+							)
+							rec.Status = "done"
+							rec.ResultJSON = string(b)
+						}
+					}
+				case "failed":
+					errMsg, _ := jobResult["error"].(string)
+					_, _ = db.Exec(
+						"UPDATE analysis_requests SET status = 'failed', error = $1, updated_at = NOW() WHERE id = $2",
+						errMsg, rec.ID,
+					)
+					rec.Status = "failed"
+					rec.Error = errMsg
+				case "running", "queued":
+					_, _ = db.Exec(
+						"UPDATE analysis_requests SET status = $1, updated_at = NOW() WHERE id = $2",
+						status, rec.ID,
+					)
+					rec.Status = status
+				}
+			}
 		}
 
 		c.JSON(http.StatusOK, rec)
