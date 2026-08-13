@@ -33,9 +33,8 @@ services:
       context: .
       dockerfile: Dockerfile.frontend
       args:
-        # Reown Cloud projectId — https://cloud.reown.com 에서 발급 후 여기에 입력
-        # (미설정 시 이메일/QR 연결 버튼 숨김, 나머지 결제 경로는 정상 동작)
-        VITE_WALLETCONNECT_PROJECT_ID: ""
+        # Reown Cloud projectId — https://cloud.reown.com 에서 발급
+        VITE_WALLETCONNECT_PROJECT_ID: "8a3a67494262903e5846f52ab4f445b8"
     container_name: cmall_dd-frontend
     ports:
       - "3000:80"
