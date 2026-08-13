@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -85,8 +86,9 @@ func paymentMatchesGateway(gatewayResult map[string]interface{}, payment *models
 	return strings.ToLower(strings.TrimSpace(payer)) == payment.WalletAddress
 }
 
-// registerWithGateway — 결제 주문 사전등록 (dev-mock: 게이트웨이 저장; 온체인: owner 서명 registerOrder 준비)
+// registerWithGateway — 결제 주문 사전등록 (dev-mock: 게이트웨이 저장; 온체인: owner 서명 registerOrder)
 // 실패해도 결제 생성은 차단하지 않는다 (온체인 등록은 게이트웨이 signer 연동 후 활성화).
+// 실패 시 서버 로그에 기록 (B2/S5 — 조용한 실패 방지, 사용자 오류 일반화 유지).
 func registerWithGateway(referenceID, walletAddress string, amountUsdc int64) {
 	base := gatewayURL()
 	if base == "" {
@@ -99,6 +101,7 @@ func registerWithGateway(referenceID, walletAddress string, amountUsdc int64) {
 	})
 	req, err := http.NewRequest(http.MethodPost, base+"/internal/blockchain/payment/register", bytes.NewReader(body))
 	if err != nil {
+		log.Printf("[payments] register request build failed: %v", err)
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -107,10 +110,16 @@ func registerWithGateway(referenceID, walletAddress string, amountUsdc int64) {
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
+		log.Printf("[payments] register failed (ref=%s): %v", referenceID, err)
 		return
 	}
 	defer resp.Body.Close()
-	_, _ = io.ReadAll(io.LimitReader(resp.Body, 1<<16))
+	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<16))
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("[payments] register returned %d (ref=%s): %s", resp.StatusCode, referenceID, string(respBody))
+		return
+	}
+	log.Printf("[payments] register OK (ref=%s, wallet=%s, amount=%d)", referenceID, walletAddress, amountUsdc)
 }
 
 // CreatePayment — POST /api/v1/payments/create (JWT)
