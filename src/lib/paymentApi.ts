@@ -174,9 +174,12 @@ export async function verifyWallet(
   signature: string,
   nonce: string
 ): Promise<WalletAuthResponse> {
+  // 로그인 상태면 토큰을 함께 전송 → 백엔드가 현재 계정에 지갑을 바인딩
+  // (2026-08-13: 지갑 전용 계정 분리 방지 — 구매 내역이 로그인 계정에 쌓임)
+  const token = getToken();
   const response = await fetch(`${API_BASE_URL}/auth/verify`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: JSON.stringify({ walletAddress, signature, nonce }),
   });
   if (!response.ok) {

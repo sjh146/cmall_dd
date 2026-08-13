@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // ── 지갑 인증 (M3) ────────────────────────────────────────────────────────
@@ -147,8 +148,9 @@ func WalletVerify(db *sql.DB) gin.HandlerFunc {
 			}
 		}
 
-		// ③ 사용자 조회/생성 (지갑 전용 계정: email = <wallet>@wallet.local)
-		user, err := getOrCreateWalletUser(db, wallet)
+		// ③ 사용자 조회/생성 — 로그인 상태면 그 계정에 지갑 바인딩 (2026-08-13 계정 분리 수정)
+		//    비로그인 상태면 지갑 전용 계정 생성 (기존 동작)
+		user, err := resolveUserWithWalletBinding(c, db, wallet)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to provision user"})
 			return
@@ -253,6 +255,60 @@ func devSignatureOK(wallet, signature string) bool {
 	//   테스트넷(dev) 한정 완화 — 운영(APP_ENV!=dev)은 이 함수가 아예 false라 영향 없음.
 	//   실결제는 pay()가 payer 개인키 서명을 요구하므로 자금 탈취 경로는 아님.
 	return true
+}
+
+// resolveUserWithWalletBinding — 지갑 연결 시 계정 결정 (2026-08-13)
+// - 요청에 유효한 로그인 토큰(JWT)이 있으면: 그 계정에 지갑을 바인딩한다.
+//   기존에 지갑 전용 계정으로 쌓인 결제/분석 내역은 로그인 계정으로 이전 →
+//   "My Products 구매 내역"이 로그인 계정에서 보이도록 보장.
+// - 로그인 토큰이 없으면: 지갑 전용 계정 생성 (기존 동작, 비로그인 지갑 결제)
+func resolveUserWithWalletBinding(c *gin.Context, db *sql.DB, wallet string) (models.User, error) {
+	// 1) 유효한 로그인 토큰 확인 (옵셔널 — /auth/verify는 public 라우트)
+	var loggedInID int
+	if authHeader := c.GetHeader("Authorization"); strings.HasPrefix(authHeader, "Bearer ") {
+		claims := &Claims{}
+		if token, err := jwt.ParseWithClaims(strings.TrimPrefix(authHeader, "Bearer "), claims, func(t *jwt.Token) (interface{}, error) {
+			return jwtSecret(), nil
+		}); err == nil && token.Valid {
+			loggedInID = claims.UserID
+		}
+	}
+
+	wUser, err := getOrCreateWalletUser(db, wallet)
+	if err != nil {
+		return wUser, err
+	}
+
+	// 2) 비로그인 또는 이미 같은 계정 → 지갑 전용 계정 그대로
+	if loggedInID <= 0 || loggedInID == wUser.ID {
+		return wUser, nil
+	}
+
+	// 3) 로그인 계정으로 바인딩 (지갑 전용 계정의 내역 이전 포함)
+	var loggedUser models.User
+	err = db.QueryRow(
+		"SELECT id, email, name, role, avatar, bio, created_at, updated_at FROM users WHERE id = $1", loggedInID,
+	).Scan(&loggedUser.ID, &loggedUser.Email, &loggedUser.Name, &loggedUser.Role,
+		&loggedUser.Avatar, &loggedUser.Bio, &loggedUser.CreatedAt, &loggedUser.UpdatedAt)
+	if err != nil {
+		// 로그인 계정이 더 이상 없으면 지갑 전용 계정 사용
+		return wUser, nil
+	}
+
+	// 지갑 전용 계정(wUser)이면 결제/분석 내역을 로그인 계정으로 이전
+	// (안전: @wallet.local 도메인 계정만 대상 — 일반 계정 데이터는 건드리지 않음)
+	var wEmail string
+	_ = db.QueryRow("SELECT email FROM users WHERE id = $1", wUser.ID).Scan(&wEmail)
+	if strings.HasSuffix(strings.ToLower(wEmail), "@wallet.local") {
+		if tx, txErr := db.Begin(); txErr == nil {
+			_, _ = tx.Exec("UPDATE payments SET user_id = $1 WHERE user_id = $2", loggedUser.ID, wUser.ID)
+			_, _ = tx.Exec("UPDATE analysis_requests SET user_id = $1 WHERE user_id = $2", loggedUser.ID, wUser.ID)
+			_, _ = tx.Exec("UPDATE wallets SET user_id = $1 WHERE wallet_address = $2", loggedUser.ID, wallet)
+			_ = tx.Commit()
+		}
+	}
+
+	return loggedUser, nil
 }
 
 // getOrCreateWalletUser — 지갑 전용 사용자 자동 프로비저닝
