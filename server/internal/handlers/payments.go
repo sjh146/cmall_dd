@@ -286,6 +286,68 @@ func GetPayment(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
+// MyPurchases — GET /api/v1/my-purchases
+// 내가 결제(paid)한 분석 상품 목록 + 연결된 분석 요청/결과 (My Products의 구매 내역)
+func MyPurchases(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, exists := c.Get("userId")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+		rows, err := db.Query(`
+			SELECT p.reference_id, p.wallet_address, p.amount_usdc, p.status, COALESCE(p.tx_hash, ''),
+			       p.created_at,
+			       pr.id, pr.name, pr.request_type,
+			       COALESCE(a.id, 0), COALESCE(a.status, ''), COALESCE(a.result_json, ''),
+			       COALESCE(a.updated_at, p.created_at)
+			FROM payments p
+			JOIN products pr ON pr.id = p.order_id
+			LEFT JOIN LATERAL (
+				SELECT * FROM analysis_requests a
+				WHERE a.user_id = p.user_id AND a.request_type = pr.request_type
+				ORDER BY a.id DESC LIMIT 1
+			) a ON true
+			WHERE p.user_id = $1 AND p.status = 'paid'
+			ORDER BY p.created_at DESC
+		`, userID)
+		if err != nil {
+			log.Printf("[payments] my-purchases query failed: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load purchases"})
+			return
+		}
+		defer rows.Close()
+
+		type purchaseItem struct {
+			ReferenceID     string    `json:"referenceId"`
+			WalletAddress   string    `json:"walletAddress"`
+			AmountUsdc      int64     `json:"amountUsdc"`
+			Status          string    `json:"status"`
+			TxHash          string    `json:"txHash"`
+			PurchasedAt     time.Time `json:"purchasedAt"`
+			ProductID       int       `json:"productId"`
+			ProductName     string    `json:"productName"`
+			RequestType     string    `json:"requestType"`
+			AnalysisID      int       `json:"analysisId"`
+			AnalysisStatus  string    `json:"analysisStatus"`
+			ResultJSON      string    `json:"resultJson"`
+			AnalysisUpdated time.Time `json:"analysisUpdated"`
+		}
+		items := []purchaseItem{}
+		for rows.Next() {
+			var it purchaseItem
+			if err := rows.Scan(&it.ReferenceID, &it.WalletAddress, &it.AmountUsdc, &it.Status, &it.TxHash,
+				&it.PurchasedAt, &it.ProductID, &it.ProductName, &it.RequestType,
+				&it.AnalysisID, &it.AnalysisStatus, &it.ResultJSON, &it.AnalysisUpdated); err != nil {
+				log.Printf("[payments] my-purchases scan failed: %v", err)
+				continue
+			}
+			items = append(items, it)
+		}
+		c.JSON(http.StatusOK, gin.H{"purchases": items})
+	}
+}
+
 // GetAgents — GET /api/v1/agents
 // 판매 중인 AI 분석 상품 (product_type='analysis' 또는 USDC 가격이 설정된 상품)
 func GetAgents(db *sql.DB) gin.HandlerFunc {

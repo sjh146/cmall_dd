@@ -256,6 +256,36 @@ export async function getPayment(referenceId: string): Promise<PaymentResponse> 
   return response.json();
 }
 
+/** 내 구매 내역 (paid 결제 + 분석 결과) — My Products 페이지 */
+export interface PurchaseItem {
+  referenceId: string;
+  walletAddress: string;
+  amountUsdc: number;
+  status: string;
+  txHash: string;
+  purchasedAt: string;
+  productId: number;
+  productName: string;
+  requestType: string;
+  analysisId: number;
+  analysisStatus: string;
+  resultJson: string;
+  analysisUpdated: string;
+}
+
+export async function fetchMyPurchases(): Promise<PurchaseItem[]> {
+  const token = getToken();
+  const response = await fetch(`${API_BASE_URL}/my-purchases`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.error || 'Failed to load purchases');
+  }
+  const data = await response.json();
+  return data.purchases || [];
+}
+
 // 분석
 export async function createAnalysis(symbol: string, requestType: string): Promise<AnalysisRequest> {
   const token = getToken();
