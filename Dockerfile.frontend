@@ -18,6 +18,9 @@ COPY . .
 # same-origin(/api/v1, nginx 프록시)이 기본 — 외부 고객 접속 필수값.
 ARG VITE_API_BASE_URL=/api/v1
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+# WalletConnect/임베디드 지갑 (Reown Cloud projectId — 미설정 시 해당 버튼 숨김)
+ARG VITE_WALLETCONNECT_PROJECT_ID=
+ENV VITE_WALLETCONNECT_PROJECT_ID=$VITE_WALLETCONNECT_PROJECT_ID
 RUN npm run build
 
 # Production image

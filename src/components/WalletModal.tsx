@@ -8,10 +8,15 @@ import {
   humanityVerify,
 } from '../lib/paymentApi';
 import { logout, getToken, removeToken, removeCurrentUser } from '../lib/api';
+import {
+  WALLETCONNECT_CONFIGURED,
+  connectWithAppKit,
+  setWalletProviderKind,
+} from '../lib/walletProviders';
 
 /**
  * WalletModal — ZK 지갑 연결/해제 UI (M3) + 인간 증명 (M2-1)
- * - 실제 지갑(MetaMask) 또는 개발 모드(devMode) 지원
+ * - 실제 지갑(MetaMask) / 이메일·QR(AppKit 임베디드+WalletConnect) / dev 주소입력 지원
  * - World ID 인간 증명: devMode는 로컬 모의, 실모드는 IDKit 위젯 (config 없으면 비활성)
  */
 export default function WalletModal({ devMode = false }: { devMode?: boolean }) {
@@ -27,6 +32,8 @@ export default function WalletModal({ devMode = false }: { devMode?: boolean }) 
   const [humanityLoading, setHumanityLoading] = useState(false);
 
   const ethereum = (window as any).ethereum;
+  const canInjected = !!ethereum;
+  const canAppKit = WALLETCONNECT_CONFIGURED;
 
   useEffect(() => {
     fetchWorldIDConfig().then((cfg) => {
@@ -36,17 +43,36 @@ export default function WalletModal({ devMode = false }: { devMode?: boolean }) 
     });
   }, []);
 
+  /** MetaMask 등 브라우저 지갑으로 연결 (서명 기반) */
   async function handleConnect() {
+    if (!ethereum) {
+      setError('MetaMask가 설치되어 있지 않습니다. 아래 "이메일/QR 연결" 또는 "주소로 연결"을 사용하세요.');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      if (!devMode && !ethereum) {
-        throw new Error('MetaMask가 설치되어 있지 않습니다. 아래에서 지갑 주소를 직접 입력하세요.');
-      }
-      const auth = await loginWithWallet(ethereum, devMode);
+      const auth = await loginWithWallet(ethereum, false);
+      setWalletProviderKind('injected');
       setAddress(auth.walletAddress);
     } catch (e: any) {
       setError(e.message || '지갑 연결 실패');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /** AppKit 연결: WalletConnect QR(모바일 지갑) + 이메일/소셜 임베디드 지갑 */
+  async function handleConnectAppKit() {
+    setLoading(true);
+    setError(null);
+    try {
+      const { provider } = await connectWithAppKit();
+      setWalletProviderKind('appkit');
+      const auth = await loginWithWallet(provider, false);
+      setAddress(auth.walletAddress);
+    } catch (e: any) {
+      setError(e.message || '이메일/QR 연결 실패');
     } finally {
       setLoading(false);
     }
@@ -63,6 +89,7 @@ export default function WalletModal({ devMode = false }: { devMode?: boolean }) 
     setError(null);
     try {
       const auth = await loginWithWallet(null, true, addr);
+      setWalletProviderKind('address');
       setAddress(auth.walletAddress);
     } catch (e: any) {
       setError(e.message || '지갑 연결 실패');
@@ -217,36 +244,59 @@ export default function WalletModal({ devMode = false }: { devMode?: boolean }) 
         지갑을 연결하고 USDC로 결제하세요. 시크릿은 서버에 저장되지 않습니다.
       </p>
 
-      {/* 주소 직접 입력 — MetaMask 없이 연결 (회색 버튼) */}
-      <div className="space-y-2 mb-3">
-        <input
-          value={manualAddress}
-          onChange={(e) => setManualAddress(e.target.value)}
-          placeholder="지갑 주소 입력 (0x...) — MetaMask 없이 연결"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-gray-500"
-        />
+      {/* 연결 경로 1: MetaMask 등 브라우저 지갑 */}
+      {canInjected && (
         <button
-          onClick={handleConnectByAddress}
-          disabled={loading || !manualAddress.trim()}
-          className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg text-sm disabled:opacity-50"
+          onClick={handleConnect}
+          disabled={loading}
+          className="w-full px-4 py-2 mb-2 bg-gray-600 text-white rounded-lg text-sm disabled:opacity-50"
         >
-          {loading ? '연결 중...' : '주소로 연결'}
+          {loading ? '연결 중...' : '🦊 MetaMask 지갑 연결'}
         </button>
-      </div>
+      )}
 
-      <div className="flex items-center gap-2 mb-3">
-        <div className="flex-1 border-t border-gray-200" />
-        <span className="text-xs text-gray-400">또는 MetaMask</span>
-        <div className="flex-1 border-t border-gray-200" />
-      </div>
+      {/* 연결 경로 2: AppKit — 이메일/소셜 임베디드 지갑 + WalletConnect QR */}
+      {canAppKit && (
+        <button
+          onClick={handleConnectAppKit}
+          disabled={loading}
+          className="w-full px-4 py-2 mb-2 bg-gray-600 text-white rounded-lg text-sm disabled:opacity-50"
+        >
+          {loading ? '연결 중...' : '📧 이메일 / QR로 연결 (모바일 지갑·소셜 로그인)'}
+        </button>
+      )}
 
-      <button
-        onClick={handleConnect}
-        disabled={loading}
-        className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg text-sm disabled:opacity-50"
-      >
-        {loading ? '연결 중...' : devMode ? '개발모드 지갑 연결' : 'MetaMask 지갑 연결'}
-      </button>
+      {!canInjected && !canAppKit && !devMode && (
+        <p className="text-xs text-amber-600 mb-2">
+          지갑 연결 방법이 없습니다 — MetaMask 설치 또는 프로젝트 키 설정 필요
+        </p>
+      )}
+
+      {/* dev 전용: 주소 직접 입력 (운영자 대행 결제) */}
+      {devMode && (
+        <>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="flex-1 border-t border-gray-200" />
+            <span className="text-xs text-gray-400">또는 주소 직접 입력 (테스트)</span>
+            <div className="flex-1 border-t border-gray-200" />
+          </div>
+          <div className="space-y-2">
+            <input
+              value={manualAddress}
+              onChange={(e) => setManualAddress(e.target.value)}
+              placeholder="지갑 주소 입력 (0x...) — MetaMask 없이 연결"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-gray-500"
+            />
+            <button
+              onClick={handleConnectByAddress}
+              disabled={loading || !manualAddress.trim()}
+              className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg text-sm disabled:opacity-50"
+            >
+              {loading ? '연결 중...' : '주소로 연결'}
+            </button>
+          </div>
+        </>
+      )}
       {error && <p className="text-xs text-red-600 mt-2">{error}</p>}
     </div>
   );

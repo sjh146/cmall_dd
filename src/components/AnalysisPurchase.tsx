@@ -18,6 +18,7 @@ import {
   type Payment,
   type AnalysisRequest,
 } from '../lib/paymentApi';
+import { getWalletProviderKind, getActiveProvider } from '../lib/walletProviders';
 
 const fmtUsdc = (micro: number) => `${(micro / 1_000_000).toFixed(2)} USDC`;
 
@@ -43,8 +44,8 @@ export default function AnalysisPurchase({ agent }: { agent: Agent }) {
   const [error, setError] = useState<string | null>(null);
 
   const requestType = agent.requestType || 'stock_report';
-  // MetaMask 없는 사용자(주소만 연결) → 운영자 대행 결제(dev) 사용
-  const addressOnly = typeof window !== 'undefined' && !(window as any).ethereum;
+  // 운영자 대행(dev) 경로: 주소 직접 입력으로 연결한 경우만 (MetaMask/AppKit 연결자는 서명 가능)
+  const addressOnly = getWalletProviderKind() === 'address';
 
   async function handleBuy() {
     setLoading(true);
@@ -106,9 +107,10 @@ export default function AnalysisPurchase({ agent }: { agent: Agent }) {
       setError('결제 주문이 없습니다. 먼저 결제 주문을 생성하세요.');
       return;
     }
-    const ethereum = (window as any).ethereum;
-    if (!ethereum) {
-      setError('MetaMask가 설치되어 있지 않습니다.');
+    // 활성 프로바이저: MetaMask → AppKit(이메일/소셜/모바일 지갑) 순서
+    const active = await getActiveProvider();
+    if (!active) {
+      setError('지갑이 연결되어 있지 않습니다. 로그인 후 지갑을 연결하세요.');
       return;
     }
     setPaying(true);
@@ -116,7 +118,7 @@ export default function AnalysisPurchase({ agent }: { agent: Agent }) {
     setMessage(null);
     try {
       setMessage('지갑에서 결제를 승인해주세요 (네트워크 스위치 → USDC approve → pay()).');
-      const { txHash, approveTxHash } = await payWithContract(payment, contractAddress, tokenAddress, ethereum);
+      const { txHash, approveTxHash } = await payWithContract(payment, contractAddress, tokenAddress, active.provider);
       setMessage(
         `✅ 온체인 결제 트랜잭션 전송됨: ${txHash.slice(0, 18)}… (approve: ${approveTxHash ? '✓' : '생략(기존 allowance)'}) — 결제 검증 대기 중...`
       );
