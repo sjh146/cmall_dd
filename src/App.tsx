@@ -15,7 +15,6 @@ import AdminPage from './pages/AdminPage';
 import LecturePage from './pages/LecturePage';
 import NoticePage from './pages/NoticePage';
 import ProductPage from './pages/ProductPage';
-import AgentsPage from './pages/AgentsPage';
 import { Button } from './components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './components/ui/select';
 import { Grid, List } from 'lucide-react';
@@ -457,7 +456,8 @@ export default function App() {
           <Route path="/notices" element={<NoticePage />} />
           <Route path="/my-products" element={<MyProducts />} />
           <Route path="/product/:id" element={<ProductPage />} />
-          <Route path="/agents" element={<AgentsPage />} />
+          {/* M6 통합: AI 분석 결제는 FQT 쇼핑몰 상품 상세(/product/:id)에 통합 — /agents는 메인으로 */}
+          <Route path="/agents" element={<Navigate to="/" replace />} />
         </Routes>
       </CartProvider>
     </BrowserRouter>

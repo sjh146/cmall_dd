@@ -122,6 +122,12 @@ export function ProductCard({ product, onAddToCart, onToggleFavorite, isFavorite
             -{discountPercentage}%
           </div>
         )}
+        {/* AI 분석 상품 배지 — 상세 페이지에서 USDC 결제 가능 */}
+        {product.category === 'AI 분석' && (
+          <div className="absolute top-3 left-3 bg-[#1e3d5f] text-[#3b82f6] text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">
+            AI 분석 · USDC 결제
+          </div>
+        )}
         
         {/* Add to cart button - always visible */}
         <Button

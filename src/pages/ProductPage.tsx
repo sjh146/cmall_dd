@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { fetchProduct, addToCart as addToCartAPI, type Product as APIProduct } from '../lib/api';
+import { getAgents, type Agent } from '../lib/paymentApi';
+import AnalysisPurchase from '../components/AnalysisPurchase';
 import { useCart } from '../contexts/CartContext';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { SimpleModal } from '../components/ui/SimpleModal';
 import { 
   ArrowLeft, ShoppingCart, Star, Download, FileText, 
-  CheckCircle, Clock, Shield, Tag, ExternalLink, Check
+  CheckCircle, Clock, Shield, Tag, ExternalLink, Check, Wallet
 } from 'lucide-react';
 
 interface Product {
@@ -52,6 +54,23 @@ export default function ProductPage() {
   const [showRequirements, setShowRequirements] = useState(false);
   const [addingToCart, setAddingToCart] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
+  // AI 분석 상품(USDC 결제 대상) 여부 — /agents에서 requestType/cryptoPriceUsdc 조회
+  const [agent, setAgent] = useState<Agent | null>(null);
+  const isAnalysisProduct = agent !== null;
+
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    // 상품이 'AI 분석' 카테고리면 분석 결제 상품 정보 로드
+    getAgents()
+      .then((list) => {
+        if (cancelled) return;
+        const match = list.find((a) => String(a.id) === String(id));
+        if (match) setAgent(match);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [id]);
 
   useEffect(() => {
     const loadProduct = async () => {
@@ -244,31 +263,41 @@ export default function ProductPage() {
               </div>
             )}
 
-            {/* Add to Cart */}
-            <div className="flex gap-4 pt-4">
-              <Button
-                onClick={handleAddToCart}
-                disabled={addingToCart}
-                className={`flex-1 ${addedToCart ? 'bg-green-600 hover:bg-green-700' : theme.accentBg} text-black ${theme.accentHover} text-lg py-6`}
-              >
-                {addingToCart ? (
-                  <span className="flex items-center">
-                    <span className="animate-spin h-4 w-4 border-2 border-black border-t-transparent rounded-full mr-2"></span>
-                    Adding...
-                  </span>
-                ) : addedToCart ? (
-                  <span className="flex items-center">
-                    <Check className="h-5 w-5 mr-2" />
-                    Added!
-                  </span>
-                ) : (
-                  <span className="flex items-center">
-                    <ShoppingCart className="h-5 w-5 mr-2" />
-                    Add to Cart
-                  </span>
-                )}
-              </Button>
-            </div>
+            {/* AI 분석 상품 → USDC 스마트컨트랙트 결제 패널 (FQT 쇼핑몰 통합) */}
+            {isAnalysisProduct && agent ? (
+              <div className="pt-2">
+                <div className="flex items-center gap-2 mb-3 text-[#d4af37] text-sm font-semibold">
+                  <Wallet className="w-4 h-4" />
+                  AI 분석 · USDC 결제 (Base Sepolia)
+                </div>
+                <AnalysisPurchase agent={agent} />
+              </div>
+            ) : (
+              <div className="flex gap-4 pt-4">
+                <Button
+                  onClick={handleAddToCart}
+                  disabled={addingToCart}
+                  className={`flex-1 ${addedToCart ? 'bg-green-600 hover:bg-green-700' : theme.accentBg} text-black ${theme.accentHover} text-lg py-6`}
+                >
+                  {addingToCart ? (
+                    <span className="flex items-center">
+                      <span className="animate-spin h-4 w-4 border-2 border-black border-t-transparent rounded-full mr-2"></span>
+                      Adding...
+                    </span>
+                  ) : addedToCart ? (
+                    <span className="flex items-center">
+                      <Check className="h-5 w-5 mr-2" />
+                      Added!
+                    </span>
+                  ) : (
+                    <span className="flex items-center">
+                      <ShoppingCart className="h-5 w-5 mr-2" />
+                      Add to Cart
+                    </span>
+                  )}
+                </Button>
+              </div>
+            )}
 
             {/* Features & Requirements */}
             <div className="space-y-3 pt-4 border-t border-[#262626]">
