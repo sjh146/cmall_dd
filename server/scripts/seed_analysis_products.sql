@@ -7,14 +7,14 @@ INSERT INTO products
    request_type, version, download_url, file_size, license_key, description,
    features, system_requirements, crypto_price_usdc)
 VALUES
-  (179, 212, 'AI 주식 분석 리포트 (analyist_dd)', 5000, 0, '', 'AI 분석', 'software',
+  (179, 212, 'AI 주식 분석 리포트 (analyist_dd)', 500, 0, '', 'AI 분석', 'software',
    'stock_report', '1.0.0', '', 0, '',
    'KRX 종목 분석 리포트 — ML 예측/감성/시세 합성 (USDC 결제)', '', '', 5000000),
-  (180, 212, '스윙종목 스크리너 (analyist_dd)', 3000, 0, '', 'AI 분석', 'software',
+  (180, 212, '스윙종목 스크리너 (analyist_dd)', 90, 0, '', 'AI 분석', 'software',
    'swing_screener', '1.0.0', '', 0, '',
    '전 종목 스윙 스크리닝 리포트 — ML 예측/신뢰도 (USDC 결제)', '', '', 900000),
   -- 181 (모델 백테스트 리포트) — 2026-08-15 사용자 요청으로 상품 삭제
-  (182, 212, '강환국 투자팩터 5종 리포트', 5000, 0, '', 'AI 분석', 'software',
+  (182, 212, '강환국 투자팩터 5종 리포트', 90, 0, '', 'AI 분석', 'software',
    'factor_report', '1.0.0', '', 0, '',
    '강환국『하면 된다! 퀀트투자』팩터 전략 5종 결과 (USDC 결제)', '', '', 900000)
 ON CONFLICT (id) DO NOTHING;
