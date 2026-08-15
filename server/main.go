@@ -131,6 +131,9 @@ func main() {
 
 		// AI 에이전트 상품 목록 (public)
 		api.GET("/agents", handlers.GetAgents(db))
+		// M6 구독 (SubscriptionManager 연동)
+		api.POST("/subscriptions", handlers.CreateSubscription(db))
+		api.GET("/subscriptions", handlers.GetSubscriptions(db))
 		// M2-1: World ID 공개 설정 (프론트 위젯 주입용)
 		api.GET("/config/worldid", handlers.WorldIDPublicConfig(db))
 

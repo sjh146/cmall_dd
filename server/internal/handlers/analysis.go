@@ -77,7 +77,24 @@ var allowedAnalysisRequestTypes = map[string]bool{
 // "아무 paid 결제"로 모든 분석 기능이 열리는 것 방지 — 백테스트 결제로 팩터 리포트 요청 불가).
 // 주의: 상품의 product_type은 'software' 등으로 다양하므로 request_type 바인딩만으로 판별한다
 // (products.request_type 기본값 'stock_report' — 유료 분석 상품은 crypto_price_usdc > 0).
+//
+// M6 (2026-08-15): 올액세스 구독(번들, billing_interval_days NOT NULL)이 활성이면
+// 모든 request_type 허용 — 월 $5 구독 = 전 서비스 무제한.
 func userHasAnalysisEntitlement(db *sql.DB, userID interface{}, requestType string) bool {
+	// 1) 활성 구독 번들 검사 (subscriptions 테이블 — 기간 만료 시 자동 차단)
+	var subID int
+	subErr := db.QueryRow(`
+		SELECT s.id FROM subscriptions s
+		JOIN products pr ON pr.id = s.product_id
+		WHERE s.user_id = $1 AND s.status = 'active'
+		  AND pr.billing_interval_days IS NOT NULL
+		  AND s.current_period_end > NOW()
+		LIMIT 1`, userID,
+	).Scan(&subID)
+	if subErr == nil {
+		return true
+	}
+	// 2) 기존: 결제 이력 + request_type 일치
 	var id int
 	err := db.QueryRow(`
 		SELECT p.id FROM payments p
