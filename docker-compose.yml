@@ -37,7 +37,7 @@ services:
         VITE_WALLETCONNECT_PROJECT_ID: "8a3a67494262903e5846f52ab4f445b8"
     container_name: cmall_dd-frontend
     ports:
-      - "3000:80"
+      - "3001:80"  # 2026-08: Grafana(analyist_dd)가 3000 사용 중이라 3001로 이동
     depends_on:
       - backend
     restart: unless-stopped
