@@ -357,7 +357,7 @@ func GetAgents(db *sql.DB) gin.HandlerFunc {
 			       request_type, version, download_url, file_size, license_key, description, features,
 			       system_requirements, crypto_price_usdc, created_at, updated_at
 			FROM products
-			WHERE crypto_price_usdc > 0
+			WHERE crypto_price_usdc > 0 AND is_active = true
 			ORDER BY id DESC
 		`)
 		if err != nil {

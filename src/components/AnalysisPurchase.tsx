@@ -24,7 +24,8 @@ import { getWalletProviderKind, getActiveProvider, setWalletProviderKind, WALLET
 const fmtUsdc = (micro: number) => `${(micro / 1_000_000).toFixed(2)} USDC`;
 
 const c = {
-  card: 'bg-white border border-[#e5e5e5] rounded-lg',
+  // 2026-08: USDC 결제 박스 베이지색 (사용자 요청)
+  card: 'bg-[#f5efe0] border border-[#e0d5b8] rounded-lg',
   text: 'text-[#111111]',
   muted: 'text-[#6b7280]',
   accent: 'text-[#d4af37]',
