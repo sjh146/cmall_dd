@@ -246,7 +246,7 @@ Your next move: 승인하시면 계획 파일이 확정되어 `$start-work`로 �
 ## cmall_dd 80 터널 (두 번째 터널)
 
 - 실행 명령: `nohup cloudflared tunnel --url http://localhost:80 > /tmp/cf-tunnel-80.log 2>&1 &`
-- 공개 URL: **https://dispatch-dir-boxes-mas.trycloudflare.com** (Todo 4, 2026-08-09 실측)
+- 공개 URL: **https://travesti-patent-perfect-genes.trycloudflare.com** (Todo 4, 2026-08-09 실측)
 - 헬스: `/` 200, `/api/v1/products` 200
 - 기존 8080 터널: `https://currently-heights-participated-chemicals.trycloudflare.com` (유지, 절대 종료 금지)
 - **webhook 엔드포인트: `https://currently-heights-participated-chemicals.trycloudflare.com/github-webhook/`** (Jenkins 8080 터널 — webhook은 Jenkins에 도달해야 하므로 80 터널 아님. 80 터널은 nginx(제품)라 `/github-webhook/`가 SPA HTML을 반환해 Jenkins 도달 불가 — Todo 9 실측, 잘못 등록된 80 터널 webhook #663307378 삭제함)

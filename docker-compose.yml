@@ -103,6 +103,16 @@ services:
     networks:
       - cmall_dd-network
 
+  # 무료 외부 터널 (2026-08: quick tunnel — 재시작 시 URL 변경됨)
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --url http://nginx:80
+    depends_on:
+      - nginx
+    networks:
+      - cmall_dd-network
+
 networks:
   cmall_dd-network:
     driver: bridge
