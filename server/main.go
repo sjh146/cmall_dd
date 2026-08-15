@@ -125,15 +125,17 @@ func main() {
 			protected.POST("/payments/:referenceId/dev-pay", handlers.DevPayPayment(db))
 			protected.POST("/payments/create", handlers.CreatePayment(db))
 			protected.GET("/payments/:referenceId", handlers.GetPayment(db))
+			// M6 구독 (SubscriptionManager 연동 — JWT 필수)
+			protected.POST("/subscriptions/intent", handlers.SubscriptionIntent(db))
+			protected.GET("/subscriptions/active", handlers.SubscriptionActive(db))
+			protected.POST("/subscriptions", handlers.CreateSubscription(db))
+			protected.GET("/subscriptions", handlers.GetSubscriptions(db))
 			protected.POST("/analysis", handlers.CreateAnalysis(db))
 			protected.GET("/analysis/:requestId", handlers.GetAnalysis(db))
 		}
 
 		// AI 에이전트 상품 목록 (public)
 		api.GET("/agents", handlers.GetAgents(db))
-		// M6 구독 (SubscriptionManager 연동)
-		api.POST("/subscriptions", handlers.CreateSubscription(db))
-		api.GET("/subscriptions", handlers.GetSubscriptions(db))
 		// M2-1: World ID 공개 설정 (프론트 위젯 주입용)
 		api.GET("/config/worldid", handlers.WorldIDPublicConfig(db))
 

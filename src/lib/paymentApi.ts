@@ -388,6 +388,128 @@ const ANALYIST_PAYMENT_ABI = [
   'function processedOrderIds(uint256 orderId) view returns (bool)',
 ] as const;
 
+// ── M6: SubscriptionManager ABI ─────────────────────────────────────────
+const SUBSCRIPTION_ABI = [
+  'function subscribe(uint256 planId, uint256 amountUsdc, uint256 intervalSec, uint256 maxPeriods) returns (uint256 subscriptionId)',
+  'function getActiveSubscriptionId(address subscriber, uint256 planId) view returns (uint256)',
+  'function isActive(uint256 subscriptionId) view returns (bool)',
+  'function subscriptions(uint256) view returns (uint256 planId, address subscriber, uint256 amountUsdc, uint256 intervalSec, uint256 startedAt, uint256 lastRenewedAt, uint256 expiresAt, uint256 maxPeriods, uint256 periodsPaid, bool active)',
+] as const;
+
+export interface SubscriptionIntent {
+  contract: string;
+  usdc: string;
+  planId: string;
+  amountUsdc: string;
+  intervalSec: string;
+  approveAmount: string;
+}
+
+export interface ActiveSubscription {
+  active: boolean;
+  subscriptionId?: string;
+  expiresAt?: string;
+  amountUsdc?: string;
+  intervalSec?: string;
+  periodsPaid?: string;
+}
+
+/** 구독 의도 조회 (백엔드 → 게이트웨이 프록시) */
+export async function getSubscriptionIntent(productId: number): Promise<SubscriptionIntent> {
+  const response = await fetch(`${API_BASE_URL}/subscriptions/intent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}) },
+    body: JSON.stringify({ productId }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as any).error || '구독 의도 조회 실패');
+  }
+  return response.json();
+}
+
+/** 온체인 활성 구독 조회 */
+export async function getActiveSubscription(
+  walletAddress: string,
+  productId: number
+): Promise<ActiveSubscription> {
+  const response = await fetch(
+    `${API_BASE_URL}/subscriptions/active?walletAddress=${encodeURIComponent(walletAddress)}&productId=${productId}`,
+    { headers: { Authorization: `Bearer ${getToken()}` } }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as any).error || '구독 상태 조회 실패');
+  }
+  return response.json();
+}
+
+/** 지갑에서 approve(USDC) + subscribe() 실행 — 1회 서명 = 자동 갱신 */
+export async function subscribeWithContract(
+  intent: SubscriptionIntent,
+  ethereum: any
+): Promise<{ txHash: string; subscriptionId: string }> {
+  await ensureBaseSepolia(ethereum);
+
+  const { BrowserProvider, Contract } = await import('ethers');
+  const provider = new BrowserProvider(ethereum);
+  const signer = await provider.getSigner();
+
+  const usdc = new Contract(intent.usdc, USDC_ABI, signer);
+  const subContract = new Contract(intent.contract, SUBSCRIPTION_ABI, signer);
+
+  // ① USDC approve (잔여 allowance 부족 시에만) — subscribe() 인출 선행 필수
+  const allowance = await usdc.allowance(await signer.getAddress(), intent.contract);
+  if (allowance < BigInt(intent.approveAmount)) {
+    const approveTx = await usdc.approve(intent.contract, BigInt(intent.approveAmount));
+    await approveTx.wait();
+  }
+
+  // ② subscribe(planId, amountUsdc, intervalSec, maxPeriods=0 무기한)
+  const tx = await subContract.subscribe(
+    BigInt(intent.planId),
+    BigInt(intent.amountUsdc),
+    BigInt(intent.intervalSec),
+    0n
+  );
+  const receipt = await tx.wait();
+
+  // ③ Subscribed 이벤트에서 subscriptionId 추출
+  let subscriptionId = '';
+  for (const log of receipt.logs || []) {
+    if (log.topics && log.topics.length >= 3 && log.address.toLowerCase() === intent.contract.toLowerCase()) {
+      const candidate = log.topics[2] ? BigInt(log.topics[2]).toString() : '';
+      if (candidate) subscriptionId = candidate;
+      break;
+    }
+  }
+  if (!subscriptionId) {
+    // 이벤트 파싱 실패 시 컨트랙트 조회로 폴백
+    subscriptionId = (
+      await subContract.getActiveSubscriptionId(await signer.getAddress(), BigInt(intent.planId))
+    ).toString();
+  }
+  return { txHash: receipt.hash, subscriptionId };
+}
+
+/** 구독 기록 (DB — entitlements용) */
+export async function recordSubscription(
+  productId: number,
+  walletAddress: string,
+  contractSubscriptionId: string,
+  periodEnd: string
+): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/subscriptions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+    body: JSON.stringify({ productId, walletAddress, contractSubscriptionId, periodEnd }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as any).error || '구독 기록 실패');
+  }
+}
+
 /**
  * 사용자 지갑을 Base Sepolia(84532)로 전환 (미등록 체인이면 추가 후 전환).
  */

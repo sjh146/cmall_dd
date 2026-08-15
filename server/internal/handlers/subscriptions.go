@@ -1,8 +1,13 @@
 package handlers
 
 import (
+	"bytes"
 	"database/sql"
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -11,6 +16,101 @@ import (
 // ── M6: SaaS 구독 (SubscriptionManager 연동) ──────────────────────────────
 // 온체인 구독(USDC approve → subscribe) 성사 후 cmall DB에 기록한다.
 // entitlements는 subscriptions 테이블의 current_period_end로 만료를 검사한다.
+
+// gatewayProxy — blockchain-gateway 내부 API 호출 (X-Internal-Api-Key)
+func gatewayProxy(method, path string, body map[string]interface{}) (map[string]interface{}, error) {
+	base := os.Getenv("BLOCKCHAIN_GATEWAY_URL")
+	if base == "" {
+		return nil, fmt.Errorf("BLOCKCHAIN_GATEWAY_URL not set")
+	}
+	var reader io.Reader
+	if body != nil {
+		b, _ := json.Marshal(body)
+		reader = bytes.NewReader(b)
+	}
+	req, err := http.NewRequest(method, base+path, reader)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Internal-Api-Key", internalKey("INTERNAL_API_KEY"))
+	client := &http.Client{Timeout: 12 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	var result map[string]interface{}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("gateway invalid json: %s", string(respBody))
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("gateway returned %d: %s", resp.StatusCode, string(respBody))
+	}
+	return result, nil
+}
+
+// SubscriptionIntent — POST /api/v1/subscriptions/intent (JWT)
+// 프론트가 지갑 approve + subscribe() 트랜잭션을 구성하도록 컨트랙트 정보 반환.
+func SubscriptionIntent(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if _, exists := c.Get("userId"); !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+		var req struct {
+			ProductID int `json:"productId" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		var amountUsdc int64
+		var intervalDays int
+		if err := db.QueryRow(
+			`SELECT crypto_price_usdc, billing_interval_days FROM products WHERE id = $1 AND is_active = true`,
+			req.ProductID,
+		).Scan(&amountUsdc, &intervalDays); err != nil || intervalDays <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "not a subscription product"})
+			return
+		}
+		res, err := gatewayProxy(http.MethodPost, "/internal/subscription/intent", map[string]interface{}{
+			"planId":      fmt.Sprintf("%d", req.ProductID),
+			"amountUsdc":  fmt.Sprintf("%d", amountUsdc),
+			"intervalSec": fmt.Sprintf("%d", intervalDays*86400),
+		})
+		if err != nil {
+			c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, res)
+	}
+}
+
+// SubscriptionActive — GET /api/v1/subscriptions/active (JWT)
+// (walletAddress, productId)의 온체인 활성 구독 조회 — 프론트 구독 완료 검증용.
+func SubscriptionActive(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if _, exists := c.Get("userId"); !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+		wallet := c.Query("walletAddress")
+		productID := c.Query("productId")
+		if wallet == "" || productID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "walletAddress, productId required"})
+			return
+		}
+		res, err := gatewayProxy(http.MethodGet,
+			fmt.Sprintf("/internal/subscription/active?subscriber=%s&planId=%s", wallet, productID), nil)
+		if err != nil {
+			c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, res)
+	}
+}
 
 // CreateSubscription — POST /api/v1/subscriptions (JWT)
 // 온체인 구독 성사 후 기록. 지갑 바인딩: JWT의 walletAddress와 일치해야 함 (CWE-862).

@@ -3,7 +3,7 @@
 // USDC 스마트컨트랙트 결제 + 분석 자동 실행 + 결과 표시 흐름.
 // 흐름: 결제 주문 생성 → 지갑 approve+pay() → paid 폴링 → 구매 상품의
 // request_type으로 분석 자동 실행(queued→폴링) → 결과 구조화 렌더링.
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   createPayment,
   createPaymentDev,
@@ -15,9 +15,14 @@ import {
   payWithContract,
   pollPaymentUntilPaid,
   pollAnalysisUntilDone,
+  getSubscriptionIntent,
+  getActiveSubscription,
+  subscribeWithContract,
+  recordSubscription,
   type Agent,
   type Payment,
   type AnalysisRequest,
+  type ActiveSubscription,
 } from '../lib/paymentApi';
 import { getWalletProviderKind, getActiveProvider, setWalletProviderKind, WALLETCONNECT_CONFIGURED, connectWithAppKit } from '../lib/walletProviders';
 
@@ -44,6 +49,23 @@ export default function AnalysisPurchase({ agent }: { agent: Agent }) {
   const [paying, setPaying] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // M6 구독 상태
+  const [subscribing, setSubscribing] = useState(false);
+  const [subStatus, setSubStatus] = useState<ActiveSubscription | null>(null);
+
+  const isBundle = agent.requestType === 'subscription_bundle';
+
+  // 구독 상품이면 마운트 시 온체인 활성 구독 확인
+  useEffect(() => {
+    const w = getWalletAddress();
+    if (isBundle && w) {
+      getActiveSubscription(w, Number(agent.id))
+        .then((s) => {
+          if (s.active) setSubStatus(s);
+        })
+        .catch(() => {});
+    }
+  }, [isBundle, agent.id]);
 
   const requestType = agent.requestType || 'stock_report';
   // 운영자 대행(dev) 경로: 주소 직접 입력으로 연결한 경우만 (MetaMask/AppKit 연결자는 서명 가능)
@@ -182,6 +204,54 @@ export default function AnalysisPurchase({ agent }: { agent: Agent }) {
     }
   }
 
+  /** M6: 구독 시작 — approve(USDC) + subscribe() → 온체인 검증 → DB 기록 */
+  async function handleSubscribe() {
+    setSubscribing(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const walletAddr = getWalletAddress();
+      if (!walletAddr) {
+        throw new Error('먼저 지갑을 연결하세요 (로그인 후 연결).');
+      }
+      if (getWalletProviderKind() === 'address') {
+        throw new Error('주소 직접 연결(운영자 대행)은 구독을 지원하지 않습니다. MetaMask 또는 지갑 연결을 사용해주세요.');
+      }
+      // 지갑 세션 자동 복원 (일회성 결제 흐름과 동일)
+      const active = await getActiveProvider();
+      if (active) {
+        try {
+          await loginWithWallet(active.provider, false);
+        } catch {
+          /* 서명 거부 시 기존 토큰으로 진행 */
+        }
+      }
+      // ① 구독 의도 (컨트랙트/금액)
+      const intent = await getSubscriptionIntent(Number(agent.id));
+      const provider = await getActiveProvider();
+      if (!provider) throw new Error('지갑이 연결되어 있지 않습니다.');
+      // ② 지갑 approve + subscribe (1회 서명)
+      setMessage('지갑에서 구독을 승인해주세요 (네트워크 스위치 → USDC approve → subscribe()).');
+      const { txHash, subscriptionId } = await subscribeWithContract(intent, provider.provider);
+      // ③ 온체인 활성 검증
+      const status = await getActiveSubscription(walletAddr, Number(agent.id));
+      if (!status.active) {
+        throw new Error('온체인 구독이 확인되지 않습니다 — 잠시 후 다시 시도해주세요.');
+      }
+      // ④ DB 기록 (entitlements용 — 만료 시 자동 차단)
+      const periodEnd = status.expiresAt
+        ? new Date(Number(status.expiresAt) * 1000).toISOString()
+        : new Date(Date.now() + 30 * 86400 * 1000).toISOString();
+      await recordSubscription(Number(agent.id), walletAddr, subscriptionId, periodEnd);
+      setSubStatus(status);
+      setMessage(`구독 시작! (tx ${txHash.slice(0, 18)}…) 이제 모든 분석 서비스를 이용하실 수 있습니다.`);
+    } catch (e: any) {
+      setError(e.message || '구독 실패');
+    } finally {
+      setSubscribing(false);
+    }
+  }
+
   /** 결제 주문 재조회 */
   async function handleRefreshPayment() {
     if (!payment) return;
@@ -235,6 +305,48 @@ export default function AnalysisPurchase({ agent }: { agent: Agent }) {
 
   return (
     <div className={`${c.card} p-5 space-y-4`}>
+      {isBundle ? (
+        <>
+          <div>
+            <h3 className={`font-semibold ${c.text}`}>🔗 올액세스 구독 (월 5 USDC)</h3>
+            <p className={`text-xs ${c.muted} mt-1`}>
+              스크리너/팩터/리포트 등 전 분석 서비스를 제한 없이 이용할 수 있습니다. 한 번 결제하면 매월 자동 갱신되고, 원할 때 취소할 수 있습니다.
+            </p>
+          </div>
+          {!subStatus ? (
+            <div className="space-y-2">
+              {!getWalletAddress() && (
+                <p className={`text-xs ${c.muted}`}>
+                  💡 구독 전 지갑 연결이 필요합니다.{' '}
+                  <a href="/auth" className="text-blue-600 underline">
+                    지갑 연결하러 가기 →
+                  </a>
+                </p>
+              )}
+              <button
+                onClick={handleSubscribe}
+                disabled={subscribing || !getWalletAddress()}
+                className={`w-full px-4 py-3 ${c.accentBg} text-black rounded-lg text-sm font-semibold disabled:opacity-50`}
+              >
+                {subscribing ? '구독 진행 중...' : `구독 시작 — 월 ${fmtUsdc(agent.cryptoPriceUsdc)}`}
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-1 text-sm">
+              <p className="font-semibold text-green-700">구독 활성 — 모든 분석 서비스 이용 가능</p>
+              <p className={`text-xs ${c.muted}`}>
+                구독 #{subStatus.subscriptionId} · 다음 갱신:{' '}
+                {subStatus.expiresAt
+                  ? new Date(Number(subStatus.expiresAt) * 1000).toLocaleDateString()
+                  : '-'}
+              </p>
+            </div>
+          )}
+          {message && <p className="text-sm text-green-600">{message}</p>}
+          {error && <p className="text-sm text-red-500">{error}</p>}
+        </>
+      ) : (
+        <>
       <div>
         <h3 className={`font-semibold ${c.text}`}>🔗 USDC 결제로 분석 구매</h3>
         <p className={`text-xs ${c.muted} mt-1`}>
@@ -350,6 +462,8 @@ export default function AnalysisPurchase({ agent }: { agent: Agent }) {
 
       {message && <p className="text-sm text-green-400">{message}</p>}
       {error && <p className="text-sm text-red-400">{error}</p>}
+        </>
+      )}
     </div>
   );
 }
