@@ -50,7 +50,7 @@ export function Header({ onCartClick, searchQuery, onSearchChange, selectedCateg
 
   return (
     <>
-      <header className="bg-[#0a0a0a] border-b border-[#262626] sticky top-0 z-50 backdrop-blur-sm bg-opacity-95">
+      <header className="bg-[#0e1215] border-b border-[#262d33] sticky top-0 z-50 backdrop-blur-sm bg-opacity-95">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Mobile Menu Button */}
@@ -58,7 +58,7 @@ export function Header({ onCartClick, searchQuery, onSearchChange, selectedCateg
               variant="ghost"
               size="sm"
               onClick={() => setIsMenuOpen(true)}
-              className="md:hidden p-2 hover:bg-[#1f1f1f] text-[#fafafa]"
+              className="md:hidden p-2 hover:bg-[#1d2329] text-[#fafafa]"
             >
               <Menu className="h-5 w-5" />
             </Button>
@@ -69,10 +69,10 @@ export function Header({ onCartClick, searchQuery, onSearchChange, selectedCateg
                 style={{ fontFamily: 'Inter, sans-serif' }}
               >
                 <span className="text-[#fafafa]">F</span>
-                <span className="text-[#d4af37]">Q</span>
+                <span className="text-[#b08a3e]">Q</span>
                 <span className="text-[#fafafa]">T</span>
               </h1>
-              <span className="text-[10px] text-[#d4af37] tracking-[0.2em] uppercase -mt-1">for quant trader</span>
+              <span className="text-[10px] text-[#b08a3e] tracking-[0.2em] uppercase -mt-1">for quant trader</span>
             </Link>
 
             {/* Desktop Navigation - Hidden on mobile */}
@@ -83,9 +83,9 @@ export function Header({ onCartClick, searchQuery, onSearchChange, selectedCateg
                   onClick={() => handleCategoryClick(cat)}
                   className={`text-sm font-semibold uppercase tracking-widest transition-all relative ${
                     selectedCategory === cat.key
-                      ? 'text-[#d4af37]'
-                      : 'text-[#737373] hover:text-[#d4af37]'
-                  } after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:w-full after:h-[2px] after:bg-[#d4af37] after:scale-x-0 after:transition-transform ${
+                      ? 'text-[#b08a3e]'
+                      : 'text-[#737373] hover:text-[#b08a3e]'
+                  } after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:w-full after:h-[2px] after:bg-[#b08a3e] after:scale-x-0 after:transition-transform ${
                     selectedCategory === cat.key ? 'after:scale-x-100' : 'hover:after:scale-x-100'
                   }`}
                 >
@@ -99,7 +99,7 @@ export function Header({ onCartClick, searchQuery, onSearchChange, selectedCateg
                   <Link
                     key={item.key}
                     to={item.route}
-                    className="text-sm font-semibold uppercase tracking-widest text-[#737373] hover:text-[#d4af37] transition-colors flex items-center gap-1.5"
+                    className="text-sm font-semibold uppercase tracking-widest text-[#737373] hover:text-[#b08a3e] transition-colors flex items-center gap-1.5"
                   >
                     <Icon className="w-4 h-4" />
                     {item.label}
@@ -117,7 +117,7 @@ export function Header({ onCartClick, searchQuery, onSearchChange, selectedCateg
                   placeholder="Search products..."
                   value={searchQuery}
                   onChange={(e) => onSearchChange(e.target.value)}
-                  className="pl-11 h-10 bg-[#141414] border border-[#262626] rounded-lg focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] text-[#fafafa] placeholder:text-[#737373]"
+                  className="pl-11 h-10 bg-[#151a1f] border border-[#262d33] rounded-lg focus:border-[#b08a3e] focus:ring-1 focus:ring-[#b08a3e] text-[#fafafa] placeholder:text-[#737373]"
                 />
               </div>
             </div>
@@ -127,14 +127,14 @@ export function Header({ onCartClick, searchQuery, onSearchChange, selectedCateg
               {user ? (
                 <>
                   <Link to="/seller">
-                    <Button variant="ghost" size="sm" className="gap-2 text-[#fafafa] hover:text-[#d4af37] hover:bg-[#1f1f1f]">
+                    <Button variant="ghost" size="sm" className="gap-2 text-[#fafafa] hover:text-[#b08a3e] hover:bg-[#1d2329]">
                       <Plus className="h-4 w-4" />
                       Sell
                     </Button>
                   </Link>
                   {user.role === 'admin' && (
                     <Link to="/admin">
-                      <Button variant="ghost" size="sm" className="gap-2 text-[#fafafa] hover:text-[#d4af37] hover:bg-[#1f1f1f]">
+                      <Button variant="ghost" size="sm" className="gap-2 text-[#fafafa] hover:text-[#b08a3e] hover:bg-[#1d2329]">
                         <Settings className="h-4 w-4" />
                         Admin
                       </Button>
@@ -145,17 +145,17 @@ export function Header({ onCartClick, searchQuery, onSearchChange, selectedCateg
                       variant="ghost"
                       size="sm"
                       onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                      className="gap-2 text-[#fafafa] hover:text-[#d4af37]"
+                      className="gap-2 text-[#fafafa] hover:text-[#b08a3e]"
                     >
                       <User className="h-4 w-4" />
                       {user.name}
                     </Button>
                     {isUserMenuOpen && (
-                      <div className="absolute right-0 mt-2 w-56 bg-[#141414] border border-[#262626] rounded-lg shadow-xl py-1 z-50">
+                      <div className="absolute right-0 mt-2 w-56 bg-[#151a1f] border border-[#262d33] rounded-lg shadow-xl py-1 z-50">
                         {user.role === 'admin' && (
                           <Link
                             to="/admin"
-                            className="block px-4 py-2 text-sm text-[#d4af37] hover:bg-[#1f1f1f] border-b border-[#262626]"
+                            className="block px-4 py-2 text-sm text-[#b08a3e] hover:bg-[#1d2329] border-b border-[#262d33]"
                             onClick={() => setIsUserMenuOpen(false)}
                           >
                             <Settings className="h-4 w-4 inline mr-2" />
@@ -164,7 +164,7 @@ export function Header({ onCartClick, searchQuery, onSearchChange, selectedCateg
                         )}
                         <Link
                           to="/my-products"
-                          className="block px-4 py-2 text-sm text-[#fafafa] hover:bg-[#1f1f1f] hover:text-[#d4af37]"
+                          className="block px-4 py-2 text-sm text-[#fafafa] hover:bg-[#1d2329] hover:text-[#b08a3e]"
                           onClick={() => setIsUserMenuOpen(false)}
                         >
                           <Package className="h-4 w-4 inline mr-2" />
@@ -172,7 +172,7 @@ export function Header({ onCartClick, searchQuery, onSearchChange, selectedCateg
                         </Link>
                         <Link
                           to="/auth"
-                          className="block px-4 py-2 text-sm text-[#fafafa] hover:bg-[#1f1f1f] hover:text-[#d4af37] border-t border-[#262626]"
+                          className="block px-4 py-2 text-sm text-[#fafafa] hover:bg-[#1d2329] hover:text-[#b08a3e] border-t border-[#262d33]"
                           onClick={() => setIsUserMenuOpen(false)}
                         >
                           <Wallet className="h-4 w-4 inline mr-2" />
@@ -180,7 +180,7 @@ export function Header({ onCartClick, searchQuery, onSearchChange, selectedCateg
                         </Link>
                         <button
                           onClick={handleLogout}
-                          className="w-full text-left px-4 py-2 text-sm text-[#dc2626] hover:bg-[#1f1f1f]"
+                          className="w-full text-left px-4 py-2 text-sm text-[#dc2626] hover:bg-[#1d2329]"
                         >
                           <LogOut className="h-4 w-4 inline mr-2" />
                           Sign Out
@@ -191,7 +191,7 @@ export function Header({ onCartClick, searchQuery, onSearchChange, selectedCateg
                 </>
               ) : (
                 <Link to="/auth">
-                  <Button size="sm" className="bg-[#d4af37] text-[#0a0a0a] hover:bg-[#c9a432] font-semibold">
+                  <Button size="sm" className="bg-[#a9823a] text-white hover:bg-[#8f6d2c] font-semibold">
                     Sign In
                   </Button>
                 </Link>
@@ -201,11 +201,11 @@ export function Header({ onCartClick, searchQuery, onSearchChange, selectedCateg
                 variant="ghost"
                 size="sm"
                 onClick={onCartClick}
-                className="relative p-2 hover:bg-[#1f1f1f] text-[#fafafa]"
+                className="relative p-2 hover:bg-[#1d2329] text-[#fafafa]"
               >
                 <ShoppingCart className="h-5 w-5" />
                 {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-[#d4af37] text-[#0a0a0a] text-[10px] rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                  <span className="absolute -top-1 -right-1 bg-[#a9823a] text-white text-[10px] rounded-full h-5 w-5 flex items-center justify-center font-bold">
                     {cartCount}
                   </span>
                 )}
@@ -218,7 +218,7 @@ export function Header({ onCartClick, searchQuery, onSearchChange, selectedCateg
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsSearchOpen(!isSearchOpen)}
-                className="p-2 hover:bg-[#1f1f1f] text-[#fafafa]"
+                className="p-2 hover:bg-[#1d2329] text-[#fafafa]"
               >
                 <Search className="h-5 w-5" />
               </Button>
@@ -241,11 +241,11 @@ export function Header({ onCartClick, searchQuery, onSearchChange, selectedCateg
                 variant="ghost"
                 size="sm"
                 onClick={onCartClick}
-                className="relative p-2 hover:bg-[#1f1f1f] text-[#fafafa]"
+                className="relative p-2 hover:bg-[#1d2329] text-[#fafafa]"
               >
                 <ShoppingCart className="h-5 w-5" />
                 {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-[#d4af37] text-[#0a0a0a] text-[10px] rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                  <span className="absolute -top-1 -right-1 bg-[#a9823a] text-white text-[10px] rounded-full h-5 w-5 flex items-center justify-center font-bold">
                     {cartCount}
                   </span>
                 )}
@@ -263,7 +263,7 @@ export function Header({ onCartClick, searchQuery, onSearchChange, selectedCateg
                   placeholder="Search products..."
                   value={searchQuery}
                   onChange={(e) => onSearchChange(e.target.value)}
-                  className="pl-10 h-10 bg-[#141414] border border-[#262626] rounded-lg text-[#fafafa] placeholder:text-[#737373]"
+                  className="pl-10 h-10 bg-[#151a1f] border border-[#262d33] rounded-lg text-[#fafafa] placeholder:text-[#737373]"
                   autoFocus
                 />
               </div>
@@ -276,15 +276,15 @@ export function Header({ onCartClick, searchQuery, onSearchChange, selectedCateg
       {isMenuOpen && (
         <>
           <div className="fixed inset-0 bg-black/60 z-50" onClick={() => setIsMenuOpen(false)} />
-          <div className="fixed left-0 top-0 bottom-0 w-80 bg-[#0a0a0a] border-r border-[#262626] z-50 overflow-y-auto">
-            <div className="p-4 border-b border-[#262626]">
+          <div className="fixed left-0 top-0 bottom-0 w-80 bg-[#0e1215] border-r border-[#262d33] z-50 overflow-y-auto">
+            <div className="p-4 border-b border-[#262d33]">
               <Link to="/" onClick={() => setIsMenuOpen(false)} className="flex flex-col items-start">
                 <h1 className="text-4xl font-black tracking-wider">
                   <span className="text-[#fafafa]">F</span>
-                  <span className="text-[#d4af37]">Q</span>
+                  <span className="text-[#b08a3e]">Q</span>
                   <span className="text-[#fafafa]">T</span>
                 </h1>
-                <span className="text-[10px] text-[#d4af37] tracking-[0.2em] uppercase">for quant trader</span>
+                <span className="text-[10px] text-[#b08a3e] tracking-[0.2em] uppercase">for quant trader</span>
               </Link>
             </div>
             
@@ -295,8 +295,8 @@ export function Header({ onCartClick, searchQuery, onSearchChange, selectedCateg
                   onClick={() => handleCategoryClick(cat)}
                   className={`w-full text-left flex items-center justify-between py-3 px-4 text-sm font-semibold uppercase tracking-wider rounded-lg transition-all ${
                     selectedCategory === cat.key
-                      ? 'text-[#d4af37] bg-[#1f1f1f]'
-                      : 'text-[#737373] hover:text-[#d4af37] hover:bg-[#141414]'
+                      ? 'text-[#b08a3e] bg-[#1f1f1f]'
+                      : 'text-[#737373] hover:text-[#b08a3e] hover:bg-[#151a1f]'
                   }`}
                 >
                   {cat.label}
@@ -312,7 +312,7 @@ export function Header({ onCartClick, searchQuery, onSearchChange, selectedCateg
                     key={item.key}
                     to={item.route}
                     onClick={() => setIsMenuOpen(false)}
-                    className="w-full flex items-center gap-3 py-3 px-4 text-sm font-semibold uppercase tracking-wider rounded-lg text-[#737373] hover:text-[#d4af37] hover:bg-[#141414]"
+                    className="w-full flex items-center gap-3 py-3 px-4 text-sm font-semibold uppercase tracking-wider rounded-lg text-[#737373] hover:text-[#b08a3e] hover:bg-[#151a1f]"
                   >
                     <Icon className="w-4 h-4" />
                     {item.label}
@@ -320,13 +320,13 @@ export function Header({ onCartClick, searchQuery, onSearchChange, selectedCateg
                 );
               })}
 
-              <div className="border-t border-[#262626] my-4 pt-4">
+              <div className="border-t border-[#262d33] my-4 pt-4">
                 {user ? (
                   <>
                     <Link
                       to="/seller"
                       onClick={() => setIsMenuOpen(false)}
-                      className="flex items-center justify-between py-3 px-4 text-sm font-semibold uppercase tracking-wider rounded-lg text-[#737373] hover:text-[#d4af37] hover:bg-[#141414]"
+                      className="flex items-center justify-between py-3 px-4 text-sm font-semibold uppercase tracking-wider rounded-lg text-[#737373] hover:text-[#b08a3e] hover:bg-[#151a1f]"
                     >
                       <Plus className="h-4 w-4" />
                       Sell Product
@@ -335,7 +335,7 @@ export function Header({ onCartClick, searchQuery, onSearchChange, selectedCateg
                       <Link
                         to="/admin"
                         onClick={() => setIsMenuOpen(false)}
-                        className="flex items-center justify-between py-3 px-4 text-sm font-semibold uppercase tracking-wider rounded-lg text-[#d4af37] hover:bg-[#141414]"
+                        className="flex items-center justify-between py-3 px-4 text-sm font-semibold uppercase tracking-wider rounded-lg text-[#b08a3e] hover:bg-[#151a1f]"
                       >
                         <Settings className="h-4 w-4" />
                         Admin
@@ -344,14 +344,14 @@ export function Header({ onCartClick, searchQuery, onSearchChange, selectedCateg
                     <Link
                       to="/my-products"
                       onClick={() => setIsMenuOpen(false)}
-                      className="flex items-center justify-between py-3 px-4 text-sm font-semibold uppercase tracking-wider rounded-lg text-[#737373] hover:text-[#d4af37] hover:bg-[#141414]"
+                      className="flex items-center justify-between py-3 px-4 text-sm font-semibold uppercase tracking-wider rounded-lg text-[#737373] hover:text-[#b08a3e] hover:bg-[#151a1f]"
                     >
                       <Package className="h-4 w-4" />
                       My Products
                     </Link>
                     <button
                       onClick={() => { handleLogout(); setIsMenuOpen(false); }}
-                      className="w-full flex items-center justify-between py-3 px-4 text-sm font-semibold uppercase tracking-wider rounded-lg text-[#dc2626] hover:bg-[#141414]"
+                      className="w-full flex items-center justify-between py-3 px-4 text-sm font-semibold uppercase tracking-wider rounded-lg text-[#dc2626] hover:bg-[#151a1f]"
                     >
                       <LogOut className="h-4 w-4" />
                       Sign Out
@@ -361,7 +361,7 @@ export function Header({ onCartClick, searchQuery, onSearchChange, selectedCateg
                   <Link
                     to="/auth"
                     onClick={() => setIsMenuOpen(false)}
-                    className="block text-center py-3 px-4 text-sm font-semibold uppercase tracking-wider rounded-lg bg-[#d4af37] text-[#0a0a0a] hover:bg-[#c9a432]"
+                    className="block text-center py-3 px-4 text-sm font-semibold uppercase tracking-wider rounded-lg bg-[#a9823a] text-white hover:bg-[#8f6d2c]"
                   >
                     Sign In / Register
                   </Link>

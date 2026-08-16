@@ -302,13 +302,13 @@ function HomePage() {
             </div>
 
             {/* Desktop Toolbar */}
-            <div className="hidden lg:flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+            <div id="products" className="hidden lg:flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
               <div>
-                <h2 className="text-lg font-semibold text-foreground mb-1">
-                  {searchQuery ? `Search results for "${searchQuery}"` : 'All Products'}
+                <h2 className="font-display text-[1.35rem] font-semibold text-foreground mb-1">
+                  {searchQuery ? `Search results for "${searchQuery}"` : '분석 서비스'}
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  {filteredAndSortedProducts.length} products
+                  {filteredAndSortedProducts.length}개 상품
                 </p>
               </div>
               

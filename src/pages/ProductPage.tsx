@@ -7,6 +7,7 @@ import { useCart } from '../contexts/CartContext';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { SimpleModal } from '../components/ui/SimpleModal';
+import { Sparkline } from '../components/ProductCard';
 import { 
   ArrowLeft, ShoppingCart, Star, Download, FileText, 
   CheckCircle, Clock, Shield, Tag, ExternalLink, Check, Wallet
@@ -30,17 +31,17 @@ interface Product {
 
 // Financial dark theme colors
 const theme = {
-  bg: 'bg-[#0a0a0a]',
-  card: 'bg-[#141414]',
-  cardBorder: 'border-[#262626]',
-  accent: 'text-[#d4af37]',
-  accentBg: 'bg-[#d4af37]',
-  accentHover: 'hover:bg-[#c9a432]',
-  accentBorder: 'border-[#d4af37]',
-  text: 'text-[#fafafa]',
-  textMuted: 'text-[#737373]',
-  textSecondary: 'text-[#a3a3a3]',
-  gradient: 'bg-gradient-to-r from-[#d4af37] to-[#b8962e]',
+  bg: 'bg-[#0e1215]',
+  card: 'bg-[#151a1f]',
+  cardBorder: 'border-[#262d33]',
+  accent: 'text-[#b08a3e]',
+  accentBg: 'bg-[#a9823a]',
+  accentHover: 'hover:bg-[#8f6d2c]',
+  accentBorder: 'border-[#a9823a]',
+  text: 'text-[#f5f4f1]',
+  textMuted: 'text-[#8b857b]',
+  textSecondary: 'text-[#a8a29a]',
+  gradient: 'bg-gradient-to-r from-[#a9823a] to-[#8f6d2c]',
 };
 
 export default function ProductPage() {
@@ -132,7 +133,7 @@ export default function ProductPage() {
   if (isLoading) {
     return (
       <div className={`min-h-screen ${theme.bg} flex items-center justify-center`}>
-        <div className="animate-spin w-8 h-8 border-2 border-[#d4af37] border-t-transparent rounded-full"></div>
+        <div className="animate-spin w-8 h-8 border-2 border-[#a9823a] border-t-transparent rounded-full"></div>
       </div>
     );
   }
@@ -140,7 +141,7 @@ export default function ProductPage() {
   if (error || !product) {
     return (
       <div className={`min-h-screen ${theme.bg} flex flex-col items-center justify-center`}>
-        <h2 className="text-xl font-semibold text-[#fafafa] mb-4">{error || 'Product not found'}</h2>
+        <h2 className="text-xl font-semibold text-[#f5f4f1] mb-4">{error || 'Product not found'}</h2>
         <Link to="/">
           <Button className={`${theme.accentBg} text-black ${theme.accentHover}`}>
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -173,11 +174,11 @@ export default function ProductPage() {
   return (
     <div className={`min-h-screen ${theme.bg}`}>
       {/* Header */}
-      <div className="border-b border-[#262626] bg-[#0a0a0a] sticky top-0 z-40">
+      <div className="border-b border-[#262d33] bg-[#0e1215] sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-[#737373] hover:text-[#d4af37] transition-colors"
+            className="flex items-center gap-2 text-[#8b857b] hover:text-[#b08a3e] transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             Back
@@ -190,7 +191,7 @@ export default function ProductPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Image Section */}
           <div className="relative">
-            <div className="aspect-square bg-[#141414] border border-[#262626] rounded-xl overflow-hidden">
+            <div className="aspect-square bg-[#151a1f] border border-[#262d33] rounded-xl overflow-hidden">
               {product.image ? (
                 <img
                   src={product.image}
@@ -198,14 +199,13 @@ export default function ProductPage() {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <span className="text-[#d4af37] text-8xl font-bold">
-                    {product.category?.charAt(0).toUpperCase()}
-                  </span>
+                <div className="w-full h-full flex flex-col items-center justify-center gap-3">
+                  <Sparkline tall />
+                  <span className="font-terminal text-[11px] text-[#6f787e] tracking-[0.18em]">90D BACKTEST</span>
                 </div>
               )}
               {discountPercentage > 0 && (
-                <div className="absolute top-4 left-4 bg-[#d4af37] text-[#0a0a0a] text-sm font-bold px-3 py-1 rounded-full">
+                <div className="absolute top-4 left-4 bg-[#a9823a] text-white text-sm font-bold px-3 py-1 rounded-full">
                   -{discountPercentage}% OFF
                 </div>
               )}
@@ -216,11 +216,11 @@ export default function ProductPage() {
           <div className="space-y-6">
             {/* Category */}
             <div className="flex items-center gap-2">
-              <span className="px-3 py-1 bg-[#262626] text-[#d4af37] text-xs font-semibold uppercase rounded-full">
+              <span className="px-3 py-1 bg-[#262d33] text-[#b08a3e] text-xs font-semibold uppercase rounded-full">
                 {product.category || 'Product'}
               </span>
               {product.version && (
-                <span className="px-3 py-1 bg-[#1f1f1f] text-[#737373] text-xs rounded-full flex items-center gap-1">
+                <span className="px-3 py-1 bg-[#1d2329] text-[#8b857b] text-xs rounded-full flex items-center gap-1">
                   <Tag className="w-3 h-3" />
                   v{product.version}
                 </span>
@@ -228,28 +228,28 @@ export default function ProductPage() {
             </div>
 
             {/* Title */}
-            <h1 className="text-3xl font-bold text-[#fafafa]">{product.name}</h1>
+            <h1 className="text-3xl font-bold text-[#f5f4f1]">{product.name}</h1>
 
             {/* Price */}
             <div className="flex items-baseline gap-3">
-              <span className="text-4xl font-bold text-[#d4af37]">
+              <span className="text-4xl font-bold text-[#b08a3e]">
                 {formatPrice(product.price)}
               </span>
               {product.originalPrice && (
-                <span className="text-xl text-[#737373] line-through">
+                <span className="text-xl text-[#8b857b] line-through">
                   {formatPrice(product.originalPrice)}
                 </span>
               )}
             </div>
 
             {/* Description */}
-            <p className="text-[#a3a3a3] leading-relaxed">
+            <p className="text-[#a8a29a] leading-relaxed">
               {product.description}
             </p>
 
             {/* File Info */}
             {product.fileSize && (
-              <div className="flex items-center gap-4 text-sm text-[#737373]">
+              <div className="flex items-center gap-4 text-sm text-[#8b857b]">
                 <span className="flex items-center gap-1">
                   <FileText className="w-4 h-4" />
                   {product.fileSize}
@@ -266,7 +266,7 @@ export default function ProductPage() {
             {/* AI 분석 상품 → USDC 스마트컨트랙트 결제 패널 (FQT 쇼핑몰 통합) */}
             {isAnalysisProduct && agent ? (
               <div className="pt-2">
-                <div className="flex items-center gap-2 mb-3 text-[#d4af37] text-sm font-semibold">
+                <div className="flex items-center gap-2 mb-3 text-[#b08a3e] text-sm font-semibold">
                   <Wallet className="w-4 h-4" />
                   AI 분석 · USDC 결제 (Base Sepolia)
                 </div>
@@ -300,50 +300,50 @@ export default function ProductPage() {
             )}
 
             {/* Features & Requirements */}
-            <div className="space-y-3 pt-4 border-t border-[#262626]">
+            <div className="space-y-3 pt-4 border-t border-[#262d33]">
               {features.length > 0 && (
                 <button
                   onClick={() => setShowFeatures(!showFeatures)}
-                  className="w-full flex items-center justify-between p-4 bg-[#141414] border border-[#262626] rounded-lg hover:border-[#d4af37]/50 transition-colors"
+                  className="w-full flex items-center justify-between p-4 bg-[#151a1f] border border-[#262d33] rounded-lg hover:hover:border-[#a9823a]/50 transition-colors"
                 >
-                  <span className="text-[#fafafa] font-medium">Features</span>
-                  <span className="text-[#737373]">{features.length} items</span>
+                  <span className="text-[#f5f4f1] font-medium">Features</span>
+                  <span className="text-[#8b857b]">{features.length} items</span>
                 </button>
               )}
 
               {requirements.length > 0 && (
                 <button
                   onClick={() => setShowRequirements(!showRequirements)}
-                  className="w-full flex items-center justify-between p-4 bg-[#141414] border border-[#262626] rounded-lg hover:border-[#d4af37]/50 transition-colors"
+                  className="w-full flex items-center justify-between p-4 bg-[#151a1f] border border-[#262d33] rounded-lg hover:hover:border-[#a9823a]/50 transition-colors"
                 >
-                  <span className="text-[#fafafa] font-medium">System Requirements</span>
-                  <span className="text-[#737373]">{requirements.length} items</span>
+                  <span className="text-[#f5f4f1] font-medium">System Requirements</span>
+                  <span className="text-[#8b857b]">{requirements.length} items</span>
                 </button>
               )}
             </div>
 
             {/* License Key */}
             {product.licenseKey && (
-              <div className="p-4 bg-[#141414] border border-[#262626] rounded-lg">
-                <div className="flex items-center gap-2 text-[#737373] mb-2">
+              <div className="p-4 bg-[#151a1f] border border-[#262d33] rounded-lg">
+                <div className="flex items-center gap-2 text-[#8b857b] mb-2">
                   <Shield className="w-4 h-4" />
                   <span className="text-sm font-medium">License Key Included</span>
                 </div>
-                <p className="text-[#a3a3a3] text-sm font-mono">{product.licenseKey}</p>
+                <p className="text-[#a8a29a] text-sm font-mono">{product.licenseKey}</p>
               </div>
             )}
 
             {/* Trust badges */}
             <div className="flex flex-wrap gap-4 pt-4">
-              <div className="flex items-center gap-2 text-[#737373] text-sm">
+              <div className="flex items-center gap-2 text-[#8b857b] text-sm">
                 <CheckCircle className="w-4 h-4 text-green-500" />
                 Instant Download
               </div>
-              <div className="flex items-center gap-2 text-[#737373] text-sm">
+              <div className="flex items-center gap-2 text-[#8b857b] text-sm">
                 <Shield className="w-4 h-4 text-green-500" />
                 Secure Payment
               </div>
-              <div className="flex items-center gap-2 text-[#737373] text-sm">
+              <div className="flex items-center gap-2 text-[#8b857b] text-sm">
                 <Clock className="w-4 h-4 text-green-500" />
                 24/7 Support
               </div>
@@ -361,8 +361,8 @@ export default function ProductPage() {
       >
         <ul className="space-y-3">
           {features.map((feature: string, index: number) => (
-            <li key={index} className="flex items-start gap-3 text-[#a3a3a3]">
-              <CheckCircle className="w-5 h-5 text-[#d4af37] shrink-0 mt-0.5" />
+            <li key={index} className="flex items-start gap-3 text-[#a8a29a]">
+              <CheckCircle className="w-5 h-5 text-[#b08a3e] shrink-0 mt-0.5" />
               <span>{feature}</span>
             </li>
           ))}
@@ -378,8 +378,8 @@ export default function ProductPage() {
       >
         <ul className="space-y-3">
           {requirements.map((req: string, index: number) => (
-            <li key={index} className="flex items-start gap-3 text-[#a3a3a3]">
-              <CheckCircle className="w-5 h-5 text-[#d4af37] shrink-0 mt-0.5" />
+            <li key={index} className="flex items-start gap-3 text-[#a8a29a]">
+              <CheckCircle className="w-5 h-5 text-[#b08a3e] shrink-0 mt-0.5" />
               <span>{req}</span>
             </li>
           ))}

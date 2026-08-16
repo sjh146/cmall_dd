@@ -8,6 +8,9 @@
       "Segoe UI Symbol", "Noto Color Emoji";
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
       "Courier New", monospace;
+    /* 2026-08 디자인 개편: 에디토리얼 세리프 디스플레이 + 터미널 모노 */
+    --font-display: "Noto Serif KR", Georgia, "Times New Roman", serif;
+    --font-terminal: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
     --color-red-100: oklch(93.6% 0.032 17.717);
     --color-red-200: oklch(88.5% 0.062 18.334);
     --color-red-400: oklch(70.4% 0.191 22.216);
@@ -5247,3 +5250,53 @@ html {
     }
   }
 }
+
+/* ═══ 2026-08 디자인 개편 — 퀀트 트레이더 워크벤치 ═══════════════════════
+   에디토리얼 + 트레이딩 터미널: 종이톤 베이스, 차콜 패널, 뫼즈 브라스 악센트,
+   세리프 디스플레이 + 터미널 모노 숫자. 블랙/골드 클리셰 제거. */
+:root {
+  --paper: #f6f4ef;      /* 따뜻한 종이 톤 */
+  --paper-2: #efede6;
+  --ink: #1c1a17;        /* 차콜 잉크 */
+  --ink-soft: #55504a;
+  --charcoal: #0e1215;   /* 패널 (순수 블랙 아님) */
+  --charcoal-2: #151a1f;
+  --line: #e2ded4;       /* 라이트 보더 */
+  --line-dark: #262d33;  /* 다크 보더 */
+  --brass: #a9823a;      /* 뫼즈 브라스 (골드 대체) */
+  --brass-strong: #8f6d2c;
+  --market-up: #c8433f;  /* 국내 관례: 상승=빨강 */
+  --market-down: #2e7d5b;/* 하락=파랑/초록 */
+}
+
+html { scroll-behavior: smooth; }
+body { background: var(--paper); color: var(--ink); -webkit-font-smoothing: antialiased; }
+
+::selection { background: var(--brass); color: #fff; }
+
+/* 세리프 디스플레이 (에디토리얼) */
+.font-display { font-family: var(--font-display); }
+/* 터미널 숫자 (모노) */
+.font-terminal { font-family: var(--font-terminal); }
+
+/* 차콜 패널 — 그리드 라인 (터미널 느낌) */
+.panel-dark {
+  background:
+    linear-gradient(rgba(255,255,255,0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.028) 1px, transparent 1px),
+    var(--charcoal);
+  background-size: 44px 44px;
+}
+
+/* 얇은 서브헤딩 — 기자 스타일 */
+.eyebrow {
+  font-family: var(--font-terminal);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+/* 카드 호버 — 사람 만진 느낌 (부드러운 그림자 + 약한 리프트) */
+.card-human { transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+.card-human:hover { transform: translateY(-2px); box-shadow: 0 6px 20px -8px rgba(28,26,23,.14); border-color: var(--brass); }
