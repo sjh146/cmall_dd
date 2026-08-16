@@ -121,3 +121,45 @@
 html {
   font-size: var(--font-size);
 }
+
+/* ═══ 2026-08 디자인 개편 — 퀀트 트레이더 워크벤치 (css:build 후에도 유지) ═══ */
+:root {
+  --paper: #f6f4ef;
+  --paper-2: #efede6;
+  --ink: #1c1a17;
+  --ink-soft: #55504a;
+  --charcoal: #0e1215;
+  --charcoal-2: #151a1f;
+  --line: #e2ded4;
+  --line-dark: #262d33;
+  --brass: #a9823a;
+  --brass-strong: #8f6d2c;
+  --market-up: #c8433f;
+  --market-down: #2e7d5b;
+}
+
+html { scroll-behavior: smooth; }
+body { background: var(--paper); color: var(--ink); -webkit-font-smoothing: antialiased; }
+::selection { background: var(--brass); color: #fff; }
+
+.font-display { font-family: "Noto Serif KR", Georgia, "Times New Roman", serif; }
+.font-terminal { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+.panel-dark {
+  background:
+    linear-gradient(rgba(255,255,255,0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.028) 1px, transparent 1px),
+    var(--charcoal);
+  background-size: 44px 44px;
+}
+
+.eyebrow {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+.card-human { transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+.card-human:hover { transform: translateY(-2px); box-shadow: 0 6px 20px -8px rgba(28,26,23,.14); border-color: var(--brass); }
