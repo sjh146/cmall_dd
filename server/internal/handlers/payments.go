@@ -158,6 +158,40 @@ func CreatePayment(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
+		// 관리자 무료 구매: 지갑 연결·온체인 결제 없이 즉시 paid.
+		// role은 JWT 클레임이 아니라 DB에서 재조회 (클레임 스푸핑 방지).
+		var dbRole string
+		if err := db.QueryRow("SELECT role FROM users WHERE id = $1", userID).Scan(&dbRole); err == nil && dbRole == "admin" {
+			ref, err := randomHex(16)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate reference"})
+				return
+			}
+			referenceID := "pay_" + ref
+			zeroWallet := "0x0000000000000000000000000000000000000000"
+			chainID := envInt("CHAIN_ID", 84532)
+			var payment models.Payment
+			err = db.QueryRow(`
+				INSERT INTO payments (user_id, order_id, reference_id, wallet_address, amount_usdc, status, chain_id)
+				VALUES ($1, $2, $3, $4, 0, 'paid', $5)
+				RETURNING id, user_id, order_id, reference_id, wallet_address, amount_usdc, status, COALESCE(tx_hash, '') AS tx_hash, chain_id, created_at, updated_at
+			`, userID, req.ProductID, referenceID, zeroWallet, chainID).Scan(
+				&payment.ID, &payment.UserID, &payment.OrderID, &payment.ReferenceID, &payment.WalletAddress,
+				&payment.AmountUsdc, &payment.Status, &payment.TxHash, &payment.ChainID,
+				&payment.CreatedAt, &payment.UpdatedAt,
+			)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create free payment"})
+				return
+			}
+			c.JSON(http.StatusCreated, models.PaymentResponse{
+				Payment:         payment,
+				ContractAddress: os.Getenv("PAYMENT_CONTRACT_ADDRESS"),
+				TokenAddress:    os.Getenv("USDC_TOKEN_ADDRESS"),
+			})
+			return
+		}
+
 		// 지갑 주소 (JWT에 없으면 wallets 테이블에서)
 		wallet := fmt.Sprintf("%v", walletAddr)
 		if wallet == "<nil>" || wallet == "" {

@@ -4,6 +4,7 @@
 // 흐름: 결제 주문 생성 → 지갑 approve+pay() → paid 폴링 → 구매 상품의
 // request_type으로 분석 자동 실행(queued→폴링) → 결과 구조화 렌더링.
 import { useState, useEffect } from 'react';
+import { getCurrentUser } from '../lib/api';
 import {
   createPayment,
   createPaymentDev,
@@ -76,23 +77,28 @@ export default function AnalysisPurchase({ agent }: { agent: Agent }) {
     setError(null);
     setMessage(null);
     try {
-      const walletAddr = getWalletAddress();
-      if (!walletAddr) {
-        throw new Error('먼저 지갑을 연결하세요 (로그인 후 연결).');
-      }
-      // 지갑 세션 자동 복원: 이메일 로그인이 토큰을 덮어썼으면(지갑 클레임 소실)
-      // 결제 전에 지갑 세션으로 재인증한다. (실측: 지갑 연결 후 이메일 재로그인 → 400 wallet not connected)
-      const kind = getWalletProviderKind();
-      if (kind === 'address') {
-        // dev 주소 경로: 무서명 재인증 (DEV_SKIP_SIGNATURE)
-        await loginWithWallet(null, true, walletAddr);
-      } else {
-        const active = await getActiveProvider();
-        if (active) {
-          try {
-            await loginWithWallet(active.provider, false);
-          } catch {
-            /* 서명 거부 시 기존 토큰으로 진행 — 백엔드가 거부하면 아래에서 안내 */
+      // 관리자: 지갑 연결 없이 무료 구매 (백엔드가 role을 DB에서 재검증)
+      const me = getCurrentUser();
+      const isAdmin = me?.role === 'admin';
+      if (!isAdmin) {
+        const walletAddr = getWalletAddress();
+        if (!walletAddr) {
+          throw new Error('먼저 지갑을 연결하세요 (로그인 후 연결).');
+        }
+        // 지갑 세션 자동 복원: 이메일 로그인이 토큰을 덮어썼으면(지갑 클레임 소실)
+        // 결제 전에 지갑 세션으로 재인증한다. (실측: 지갑 연결 후 이메일 재로그인 → 400 wallet not connected)
+        const kind = getWalletProviderKind();
+        if (kind === 'address') {
+          // dev 주소 경로: 무서명 재인증 (DEV_SKIP_SIGNATURE)
+          await loginWithWallet(null, true, walletAddr);
+        } else {
+          const active = await getActiveProvider();
+          if (active) {
+            try {
+              await loginWithWallet(active.provider, false);
+            } catch {
+              /* 서명 거부 시 기존 토큰으로 진행 — 백엔드가 거부하면 아래에서 안내 */
+            }
           }
         }
       }
@@ -102,6 +108,12 @@ export default function AnalysisPurchase({ agent }: { agent: Agent }) {
       setPayment(resp);
       setContractAddress(resp.contractAddress || null);
       setTokenAddress(resp.tokenAddress || null);
+      if (resp.status === 'paid') {
+        // 관리자 무료 구매 — 즉시 완료
+        setMessage('🎉 무료 구매 완료! — 구매한 분석을 자동 실행합니다.');
+        await runAnalysis(requestType, symbol);
+        return;
+      }
       setMessage(
         addressOnly
           ? `결제 주문이 생성됐습니다. 아래 '주소로 결제'를 누르면 운영자 지갑이 결제를 대행합니다 (테스트넷 데모).`
