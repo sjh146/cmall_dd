@@ -259,6 +259,22 @@ function HomePage() {
       
       <HeroSection />
 
+      {user ? (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+          <div className="bg-[#f5efe0] border border-[#e0d5b8] rounded-lg px-6 py-5">
+            <h2 className="text-base font-semibold text-[#111111]">모델이 뭘 보고 배우나요</h2>
+            <p className="text-sm text-[#4b5563] mt-2 leading-relaxed">
+              여기서 파는 리포트는 전부 같은 엔진에서 나옵니다. 시장이 닫히면 KOSPI·KOSDAQ
+              전 종목의 시세(가격, 거래량, 모멘텀, 변동성)를 모으고, 여기에 재무제표에서 뽑은
+              PER·PBR·ROE 같은 지표와 뉴스 흐름(기사 감성, 이벤트, 테마 노출)까지 합쳐 173개
+              지표로 정리합니다. 서로 다른 알고리즘 3개(XGBoost·LightGBM·CatBoost)가 각자
+              예측한 뒤 투표해 결론을 내리고, 학습은 최근 두 달치 데이터로 7주에 두 번(약 3주
+              반 간격) 새로 돌려서 시장 흐름을 계속 따라잡습니다.
+            </p>
+          </div>
+        </section>
+      ) : null}
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
           {/* Desktop Filters Sidebar */}
