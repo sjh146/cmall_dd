@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -23,10 +22,6 @@ import (
 const (
 	nonceTTL        = 5 * time.Minute
 	loginMessageFmt = "cmall_dd login (chain %d)\nnonce: %s"
-	devWalletDomain = "cmall_dd.dev" // dev-mock 서명 도메인 (프로덕션 금지)
-	// devLocalSignatureBypassEnabled — 로컬 개발 전용 플래그. 배포 빌드에서는 false로
-	// 하드코딩되어 절대 우회가 활성화되지 않는다 (APP_ENV=dev + 이 플래그 동시 필요).
-	devLocalSignatureBypassEnabled = true
 )
 
 // personalSignHash — EIP-191 개인 서명 메시지 해시
@@ -137,15 +132,13 @@ func WalletVerify(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// ② 서명 검증 (dev-mock: "0xdev" 시그니처 — DEV_SKIP_SIGNATURE + DEV_WALLETS allowlist + 비프로덕션)
-		if !devSignatureOK(wallet, req.Signature) {
-			chainID := envInt("CHAIN_ID", 84532)
-			msg := []byte(sprintf(loginMessageFmt, chainID, req.Nonce))
-			recovered, err := recoverAddress(msg, req.Signature)
-			if err != nil || !strings.EqualFold(recovered, wallet) {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid signature"})
-				return
-			}
+		// ② 서명 검증 — 항상 실제 EIP-191 개인 서명 검증 (dev-mock 우회 경로 제거, CWE-287)
+		chainID := envInt("CHAIN_ID", 84532)
+		msg := []byte(sprintf(loginMessageFmt, chainID, req.Nonce))
+		recovered, err := recoverAddress(msg, req.Signature)
+		if err != nil || !strings.EqualFold(recovered, wallet) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid signature"})
+			return
 		}
 
 		// ③ 사용자 조회/생성 — 로그인 상태면 그 계정에 지갑 바인딩 (2026-08-13 계정 분리 수정)
@@ -232,30 +225,8 @@ func recoverAddress(message []byte, signature string) (string, error) {
 	return crypto.PubkeyToAddress(*pub).Hex(), nil
 }
 
-// devSignatureOK — 로컬 개발 전용 우회 (배포 환경에서는 절대 활성화되지 않음 — fail-closed).
-// 조건: APP_ENV가 정확히 "dev" + 로컬 컴파일/프로파일 플래그 + env(DEV_FAKE_SIGNATURE)와 일치하는
-// 시그니처 + DEV_WALLETS. 시그니처 값은 코드 리터럴이 아닌 env에서 주입 (CWE-287 스캔 대응).
-// 미설정이거나 "dev" 이외의 모든 환경에서는 무조건 false — 백도어 미가동.
-func devSignatureOK(wallet, signature string) bool {
-	// 정확한 "dev" 프로파일에서만 실행 — 미설정 또는 다른 값은 전부 차단.
-	if os.Getenv("APP_ENV") != "dev" {
-		return false
-	}
-	// 로컬 개발 전용 플래그(기본 false) — 배포 빌드에서는 true가 될 수 없다.
-	if !devLocalSignatureBypassEnabled {
-		return false
-	}
-	// 시그니처도 env에서 주입 (코드에 하드코딩 금지)
-	expected := os.Getenv("DEV_FAKE_SIGNATURE")
-	if expected == "" || !strings.EqualFold(signature, expected) {
-		return false
-	}
-	// ⚠️ 2026-08-13 사용자 요청: MetaMask 없는 고객도 지갑 주소만으로 연결 가능해야 함
-	// → DEV_WALLETS allowlist 검사를 제거 (APP_ENV=dev + DEV_FAKE_SIGNATURE 일치가 유일한 게이트).
-	//   테스트넷(dev) 한정 완화 — 운영(APP_ENV!=dev)은 이 함수가 아예 false라 영향 없음.
-	//   실결제는 pay()가 payer 개인키 서명을 요구하므로 자금 탈취 경로는 아님.
-	return true
-}
+// devSignatureOK — 제거됨 (CWE-287: dev-mock 서명 우회 경로 완전 삭제 — 2026-08-21 Strix 재발견 후).
+// 지갑 인증은 항상 실제 EIP-191 개인 서명 검증만 수행한다.
 
 // resolveUserWithWalletBinding — 지갑 연결 시 계정 결정 (2026-08-13)
 // - 요청에 유효한 로그인 토큰(JWT)이 있으면: 그 계정에 지갑을 바인딩한다.

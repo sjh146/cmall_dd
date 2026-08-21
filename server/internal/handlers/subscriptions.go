@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -100,6 +101,17 @@ func SubscriptionActive(db *sql.DB) gin.HandlerFunc {
 		productID := c.Query("productId")
 		if wallet == "" || productID == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "walletAddress, productId required"})
+			return
+		}
+		// CWE-639 (IDOR): 조회하려는 지갑이 로그인 사용자 본인의 지갑인지 DB로 검증 —
+		// 타 사용자의 구독 상태를 읽을 수 없게 한다.
+		userIDVal, _ := c.Get("userId")
+		userID, _ := userIDVal.(int)
+		var walletOwner int
+		if err := db.QueryRow(
+			"SELECT user_id FROM wallets WHERE wallet_address = LOWER($1)", strings.ToLower(wallet),
+		).Scan(&walletOwner); err != nil || walletOwner != userID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "wallet not owned by user"})
 			return
 		}
 		res, err := gatewayProxy(http.MethodGet,

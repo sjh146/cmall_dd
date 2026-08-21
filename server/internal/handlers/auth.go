@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"cmall_dd/internal/models"
 	"github.com/gin-gonic/gin"
@@ -41,11 +43,13 @@ func Register(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// Check if email already exists
+		// Check if email already exists — CWE-203: 가입 응답으로 계정 존재 여부를
+		// 노출하지 않기 위해 신규/기존 모두 동일한 201 + 메시지 본문을 반환한다.
+		// (이 쇼핑몰의 가입 흐름은 응답 토큰을 사용하지 않고 UI 상태만 전환)
 		var existingID int
 		err := db.QueryRow("SELECT id FROM users WHERE email = $1", req.Email).Scan(&existingID)
 		if err == nil {
-			c.JSON(http.StatusConflict, gin.H{"error": "Registration failed"})
+			c.JSON(http.StatusCreated, gin.H{"message": "Registration successful"})
 			return
 		}
 
@@ -81,18 +85,59 @@ func Register(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// Generate token
-		token, err := generateToken(user)
+		// Generate token (세션 유지용 — 응답에는 포함하지 않음: 신규/기존 가입 응답을
+		// 완전히 동일하게 유지해 계정 열거(CWE-203)를 차단한다. 프론트는 가입 응답
+		// 토큰을 사용하지 않고 로그인/지갑 연결로 전환한다.)
+		_, err = generateToken(user)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 			return
 		}
 
-		c.JSON(http.StatusCreated, models.AuthResponse{
-			Token: token,
-			User:  user,
-		})
+		c.JSON(http.StatusCreated, gin.H{"message": "Registration successful"})
 	}
+}
+
+// ── 로그인 시도 레이트리밋 (CWE-307: 무차별 대입/크레덴셜 스프레이 방지) ──────────
+// 이메일 기준 인메모리 카운터: 5회 연속 실패 → 15분 잠금 (429).
+var (
+	loginAttemptsMu sync.Mutex
+	loginFails      = map[string]int{}
+	loginLockedTill = map[string]time.Time{}
+)
+
+const (
+	maxLoginAttempts = 5
+	loginLockoutDur  = 15 * time.Minute
+)
+
+func loginLocked(email string) bool {
+	loginAttemptsMu.Lock()
+	defer loginAttemptsMu.Unlock()
+	key := strings.ToLower(strings.TrimSpace(email))
+	if till, ok := loginLockedTill[key]; ok && time.Now().Before(till) {
+		return true
+	}
+	return false
+}
+
+func loginFail(email string) {
+	loginAttemptsMu.Lock()
+	defer loginAttemptsMu.Unlock()
+	key := strings.ToLower(strings.TrimSpace(email))
+	loginFails[key]++
+	if loginFails[key] >= maxLoginAttempts {
+		loginLockedTill[key] = time.Now().Add(loginLockoutDur)
+		delete(loginFails, key)
+	}
+}
+
+func loginSuccess(email string) {
+	loginAttemptsMu.Lock()
+	defer loginAttemptsMu.Unlock()
+	key := strings.ToLower(strings.TrimSpace(email))
+	delete(loginFails, key)
+	delete(loginLockedTill, key)
 }
 
 // Login authenticates a user
@@ -101,6 +146,11 @@ func Login(db *sql.DB) gin.HandlerFunc {
 		var req models.LoginRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		if loginLocked(req.Email) {
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": "Too many attempts. Try again in 15 minutes."})
 			return
 		}
 
@@ -115,6 +165,7 @@ func Login(db *sql.DB) gin.HandlerFunc {
 			&user.Avatar, &user.Bio, &user.CreatedAt, &user.UpdatedAt,
 		)
 		if err == sql.ErrNoRows {
+			loginFail(req.Email)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 			return
 		}
@@ -125,9 +176,11 @@ func Login(db *sql.DB) gin.HandlerFunc {
 
 		// Check password
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+			loginFail(req.Email)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 			return
 		}
+		loginSuccess(req.Email)
 
 		// Generate token
 		token, err := generateToken(user)
