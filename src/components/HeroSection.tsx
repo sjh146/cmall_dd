@@ -24,7 +24,7 @@ export function HeroSection() {
           </h1>
           <p className="mt-5 text-[#c2bcb2] text-[15px] leading-relaxed max-w-xl">
             FQT는 퀀트 트레이딩 전략을 만들고, 검증하고, 서로 배우는 공간입니다.
-            머신러닝 분석 리포트부터 스크리너, 전략 커뮤니티까지 한 곳에서 다룹니다.
+            머신러닝 분석 리포트부터 스윙·종가 스크리너, 전략 커뮤니티까지 한 곳에서 다룹니다.
           </p>
           <div className="mt-7 flex flex-wrap items-center gap-3">
             <a
@@ -54,6 +54,7 @@ export function HeroSection() {
           </div>
           <div className="px-4 py-1 font-terminal text-[13px]">
             <StatRow k="스크리닝 유니버스" v="1,765 종목" up />
+            <StatRow k="종가스크리너" v="수급+모멘텀 · 종가 매수/익일 매도" up />
             <StatRow k="전략 팩터" v="5종" up />
             <StatRow k="백테스트" v="90일 · 비용 반영" up />
             <StatRow k="뉴스 수집" v="5 소스 · 30분 배치" />

@@ -71,6 +71,7 @@ var allowedAnalysisRequestTypes = map[string]bool{
 	"swing_screener": true,
 	"backtest":       true,
 	"factor_report":  true,
+	"close_screener": true,
 }
 
 // userHasAnalysisEntitlement — 결제한 분석 상품이 요청한 request_type과 일치해야 함 (CWE-862:

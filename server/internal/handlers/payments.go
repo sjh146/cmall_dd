@@ -387,13 +387,15 @@ func MyPurchases(db *sql.DB) gin.HandlerFunc {
 func GetAgents(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rows, err := db.Query(`
-			SELECT id, seller_id, name, price, original_price, image, category, product_type,
-			       request_type, version, download_url, file_size, license_key, description, features,
-			       system_requirements, crypto_price_usdc, created_at, updated_at
-			FROM products
-			WHERE crypto_price_usdc > 0 AND is_active = true
-			ORDER BY id DESC
-		`)
+					SELECT id, seller_id, name, price, COALESCE(original_price, 0), COALESCE(image, ''),
+					       category, product_type, request_type, COALESCE(version, ''), COALESCE(download_url, ''),
+					       COALESCE(file_size, ''), COALESCE(license_key, ''), COALESCE(description, ''),
+					       COALESCE(features, ''), COALESCE(system_requirements, ''), crypto_price_usdc,
+					       created_at, updated_at
+					FROM products
+					WHERE crypto_price_usdc > 0 AND is_active = true
+					ORDER BY id DESC
+				`)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load agents"})
 			return
@@ -420,9 +422,9 @@ func GetAgents(db *sql.DB) gin.HandlerFunc {
 				&features, &systemReq, &a.CryptoPriceUsdc, &createdAt, &updatedAt); err != nil {
 				continue
 			}
-		agents = append(agents, a)
-	}
-	c.JSON(http.StatusOK, gin.H{"agents": agents})
+			agents = append(agents, a)
+		}
+		c.JSON(http.StatusOK, gin.H{"agents": agents})
 	}
 }
 
