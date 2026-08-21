@@ -132,7 +132,16 @@ func main() {
 			protected.GET("/subscriptions", handlers.GetSubscriptions(db))
 			protected.POST("/analysis", handlers.CreateAnalysis(db))
 			protected.GET("/analysis/:requestId", handlers.GetAnalysis(db))
+			// 커뮤니티 (2026-08-21) — 글/댓글 작성·삭제 (삭제: 작성자 OR 관리자)
+			protected.POST("/community/posts", handlers.CreateCommunityPost(db))
+			protected.DELETE("/community/posts/:id", handlers.DeleteCommunityPost(db))
+			protected.POST("/community/posts/:id/comments", handlers.CreateCommunityComment(db))
+			protected.DELETE("/community/comments/:id", handlers.DeleteCommunityComment(db))
 		}
+
+		// 커뮤니티 조회 (공개 — 로그인 없이 읽기 가능)
+		api.GET("/community/posts", handlers.GetCommunityPosts(db))
+		api.GET("/community/posts/:id", handlers.GetCommunityPost(db))
 
 		// AI 에이전트 상품 목록 (public)
 		api.GET("/agents", handlers.GetAgents(db))

@@ -14,6 +14,7 @@ import MyProducts from './pages/MyProducts';
 import AdminPage from './pages/AdminPage';
 import LecturePage from './pages/LecturePage';
 import NoticePage from './pages/NoticePage';
+import { CommunityPage } from './pages/CommunityPage';
 import ProductPage from './pages/ProductPage';
 import { Button } from './components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './components/ui/select';
@@ -469,6 +470,7 @@ export default function App() {
           <Route path="/diary" element={<DiaryPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/lectures" element={<LecturePage />} />
+          <Route path="/community" element={<CommunityPage />} />
           <Route path="/notices" element={<NoticePage />} />
           <Route path="/my-products" element={<MyProducts />} />
           <Route path="/product/:id" element={<ProductPage />} />

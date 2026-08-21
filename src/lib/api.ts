@@ -646,3 +646,86 @@ export async function setUserAsAdmin(): Promise<{ message: string; email: string
   }
   return response.json();
 }
+
+// ── 커뮤니티 (2026-08-21) ─────────────────────────────────────────────
+export interface CommunityPost {
+  id: number;
+  userId: number;
+  userName: string;
+  title: string;
+  content: string;
+  category: string;
+  createdAt: string;
+  commentCount: number;
+}
+
+export interface CommunityComment {
+  id: number;
+  postId: number;
+  userId: number;
+  userName: string;
+  content: string;
+  createdAt: string;
+}
+
+async function authFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  const token = getToken();
+  return fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    },
+  });
+}
+
+export async function fetchCommunityPosts(category?: string): Promise<CommunityPost[]> {
+  const q = category ? `?category=${encodeURIComponent(category)}` : '';
+  const res = await fetch(`${API_BASE_URL}/community/posts${q}`);
+  if (!res.ok) throw new Error('Failed to fetch community posts');
+  const data = await res.json();
+  return data.posts || [];
+}
+
+export async function fetchCommunityPost(id: number): Promise<{ post: CommunityPost; comments: CommunityComment[] }> {
+  const res = await fetch(`${API_BASE_URL}/community/posts/${id}`);
+  if (!res.ok) throw new Error('Failed to fetch community post');
+  return res.json();
+}
+
+export async function createCommunityPost(data: { title: string; content: string; category: string }): Promise<CommunityPost> {
+  const res = await authFetch('/community/posts', { method: 'POST', body: JSON.stringify(data) });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to create post');
+  }
+  const json = await res.json();
+  return json.post;
+}
+
+export async function deleteCommunityPost(id: number): Promise<void> {
+  const res = await authFetch(`/community/posts/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to delete post');
+  }
+}
+
+export async function createCommunityComment(postId: number, content: string): Promise<CommunityComment> {
+  const res = await authFetch(`/community/posts/${postId}/comments`, { method: 'POST', body: JSON.stringify({ content }) });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to create comment');
+  }
+  const json = await res.json();
+  return json.comment;
+}
+
+export async function deleteCommunityComment(id: number): Promise<void> {
+  const res = await authFetch(`/community/comments/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to delete comment');
+  }
+}

@@ -212,6 +212,46 @@ func CreateTables(db *sql.DB) error {
 	}
 	log.Println("Successfully created diary_comments table")
 
+	// Create community_posts table (커뮤니티 — 전략 공유/소통 게시판)
+	createCommunityPostsTableSQL := `
+		CREATE TABLE IF NOT EXISTS community_posts (
+			id SERIAL PRIMARY KEY,
+			user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+			title VARCHAR(200) NOT NULL,
+			content TEXT NOT NULL,
+			category VARCHAR(20) NOT NULL DEFAULT '잡담',
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_community_posts_created ON community_posts(created_at DESC);
+		CREATE INDEX IF NOT EXISTS idx_community_posts_user ON community_posts(user_id);
+		`
+
+	if _, err := db.Exec(createCommunityPostsTableSQL); err != nil {
+		return fmt.Errorf("failed to create community_posts table: %w", err)
+	}
+	log.Println("Successfully created community_posts table")
+
+	// Create community_comments table
+	createCommunityCommentsTableSQL := `
+		CREATE TABLE IF NOT EXISTS community_comments (
+			id SERIAL PRIMARY KEY,
+			post_id INTEGER REFERENCES community_posts(id) ON DELETE CASCADE,
+			user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+			content TEXT NOT NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_community_comments_post ON community_comments(post_id);
+		CREATE INDEX IF NOT EXISTS idx_community_comments_user ON community_comments(user_id);
+		`
+
+	if _, err := db.Exec(createCommunityCommentsTableSQL); err != nil {
+		return fmt.Errorf("failed to create community_comments table: %w", err)
+	}
+	log.Println("Successfully created community_comments table")
+
 	// Create lectures table
 	createLecturesTableSQL := `
 		CREATE TABLE IF NOT EXISTS lectures (

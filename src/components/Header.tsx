@@ -1,4 +1,4 @@
-import { Search, ShoppingCart, Menu, User, LogOut, Package, Plus, GraduationCap, Bell, BookOpen, Settings, X, Wallet } from 'lucide-react';
+import { Search, ShoppingCart, Menu, User, LogOut, Package, Plus, GraduationCap, Bell, BookOpen, Settings, X, Wallet, MessagesSquare } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useState, useEffect } from 'react';
@@ -21,6 +21,7 @@ const categories = [
 const navItems = [
   { key: 'lectures', label: 'Lectures', route: '/lectures', icon: GraduationCap },
   { key: 'notices', label: 'Notices', route: '/notices', icon: Bell },
+  { key: 'community', label: 'Community', route: '/community', icon: MessagesSquare },
   { key: 'diary', label: 'Diary', route: '/diary', icon: BookOpen },
 ];
 
