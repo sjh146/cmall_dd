@@ -132,6 +132,7 @@ func main() {
 			protected.GET("/subscriptions", handlers.GetSubscriptions(db))
 			protected.POST("/analysis", handlers.CreateAnalysis(db))
 			protected.GET("/analysis/:requestId", handlers.GetAnalysis(db))
+			protected.GET("/analysis/:requestId/download", handlers.DownloadAnalysisResult(db))
 			// 커뮤니티 (2026-08-21) — 글/댓글 작성·삭제 (삭제: 작성자 OR 관리자)
 			protected.POST("/community/posts", handlers.CreateCommunityPost(db))
 			protected.DELETE("/community/posts/:id", handlers.DeleteCommunityPost(db))

@@ -729,3 +729,27 @@ export async function deleteCommunityComment(id: number): Promise<void> {
     throw new Error(err.error || 'Failed to delete comment');
   }
 }
+
+// 분석 결과 다운로드 (2026-08-22) — 소유자만 가능 (백엔드 403)
+export async function downloadAnalysisResult(requestId: number, format: 'csv' | 'json'): Promise<void> {
+  const token = getToken();
+  const res = await fetch(`${API_BASE_URL}/analysis/${requestId}/download?format=${format}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || '다운로드 실패');
+  }
+  const blob = await res.blob();
+  const disposition = res.headers.get('Content-Disposition') || '';
+  const match = disposition.match(/filename="?([^"]+)"?/);
+  const filename = match ? match[1] : `analysis_${requestId}.${format}`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

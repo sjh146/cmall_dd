@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { fetchMyProducts, deleteProduct, type Product } from '../lib/api';
+import { fetchMyProducts, deleteProduct, downloadAnalysisResult, type Product } from '../lib/api';
 import { fetchMyPurchases, type PurchaseItem } from '../lib/paymentApi';
 import { AnalysisResultView } from '../components/AnalysisPurchase';
 import { Button } from '../components/ui/button';
@@ -206,7 +206,35 @@ export default function MyProducts() {
                           {p.txHash ? p.txHash.slice(0, 14) + '…' : '-'} · 분석 요청 #{p.analysisId}
                         </p>
                         {hasResult ? (
-                          <AnalysisResultView requestType={p.requestType} resultJson={p.resultJson} />
+                          <>
+                            <AnalysisResultView requestType={p.requestType} resultJson={p.resultJson} />
+                            <div className="flex flex-wrap gap-2 mt-3">
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await downloadAnalysisResult(p.analysisId, 'csv');
+                                  } catch (e) {
+                                    alert(e instanceof Error ? e.message : '다운로드 실패');
+                                  }
+                                }}
+                                className="px-3 py-1.5 text-xs border border-[#a9823a] text-[#8f6d2c] hover:bg-[#f5efe0] rounded transition-colors"
+                              >
+                                CSV 다운로드
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await downloadAnalysisResult(p.analysisId, 'json');
+                                  } catch (e) {
+                                    alert(e instanceof Error ? e.message : '다운로드 실패');
+                                  }
+                                }}
+                                className="px-3 py-1.5 text-xs border border-[#d1d5db] text-[#4b5563] hover:bg-[#f9fafb] rounded transition-colors"
+                              >
+                                JSON 다운로드
+                              </button>
+                            </div>
+                          </>
                         ) : (
                           <p className="text-sm text-[#6b7280]">
                             {p.analysisStatus === 'running'
