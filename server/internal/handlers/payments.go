@@ -208,6 +208,14 @@ func CreatePayment(db *sql.DB) gin.HandlerFunc {
 		// pay()가 payer 바인딩을 강제하므로, 주문을 운영자 지갑(payer)으로 등록해야
 		// dev-pay(운영자 키 approve+pay)가 성립한다. 결제 주체는 운영자 테스트 지갑.
 		if req.PayerMode == "operator" {
+			// CWE-862 (Strix 2026-08-21): dev 게이트만으로는 배포 env 실수 시 모든 인증
+			// 사용자가 운영자 대납 무료 구매 가능 → role=admin을 DB에서 재검증 (JWT 비신뢰).
+			var callerRole string
+			_ = db.QueryRow("SELECT role FROM users WHERE id = $1", userID).Scan(&callerRole)
+			if callerRole != "admin" {
+				c.JSON(http.StatusForbidden, gin.H{"error": "operator payer mode is admin-only"})
+				return
+			}
 			if os.Getenv("APP_ENV") != "dev" {
 				c.JSON(http.StatusForbidden, gin.H{"error": "operator payer mode is dev-only"})
 				return
